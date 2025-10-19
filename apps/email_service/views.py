@@ -1,4 +1,3 @@
-# apps/email_service/views.py
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -16,40 +15,14 @@ from .serializers import (
     EmailTypeStatsSerializer,
     EmailConfigurationSerializer
 )
+from .utils import swagger_helper
 
 
 class EmailSendViewSet(viewsets.ViewSet):
-    """ViewSet for sending emails, allowing HMAC or superuser authentication."""
+    """ViewSet for sending emails, allowing microservice JWT or superuser JWT authentication."""
     permission_classes = [AllowAnySendEmail]
 
-    @swagger_auto_schema(
-        operation_description="Send an email via Celery task",
-        request_body=SendEmailSerializer,
-        responses={200: 'Email queued successfully'},
-        manual_parameters=[
-            {
-                'name': 'X-HMAC-Signature',
-                'in': 'header',
-                'type': 'string',
-                'required': True,
-                'description': 'HMAC signature for microservice authentication'
-            },
-            {
-                'name': 'X-Timestamp',
-                'in': 'header',
-                'type': 'string',
-                'required': True,
-                'description': 'ISO timestamp of the request'
-            },
-            {
-                'name': 'X-Service-Name',
-                'in': 'header',
-                'type': 'string',
-                'required': False,
-                'description': 'Name of the requesting microservice (default: identity-ms)'
-            }
-        ]
-    )
+    @swagger_helper("Email Send", "SendEmail")
     @action(detail=False, methods=['post'], url_path='send-email')
     def send_email(self, request):
         serializer = SendEmailSerializer(data=request.data)
@@ -63,12 +36,16 @@ class EmailSendViewSet(viewsets.ViewSet):
         validated_data = serializer.validated_data
 
         try:
+            # Log which authentication method was used
+            auth_method = "microservice" if hasattr(request, 'microservice_name') else "superuser"
+            microservice_name = getattr(request, 'microservice_name', 'N/A')
+            
             email_log = EmailLog.objects.create(
                 email=validated_data['user_email'],
-                email_type=validated_data['email_type'],
-                subject=validated_data['subject'],
-                action=validated_data['action'],
-                message=validated_data['message'],
+                email_type=validated_data.get('email_type', 'general'),
+                subject=validated_data.get('subject', 'Notification'),
+                action=validated_data.get('action', 'notification'),
+                message=validated_data.get('message', 'You have a new notification.'),
                 otp=validated_data.get('otp'),
                 link=validated_data.get('link'),
                 link_text=validated_data.get('link_text'),
@@ -76,19 +53,25 @@ class EmailSendViewSet(viewsets.ViewSet):
             )
 
             if is_celery_healthy():
-                send_generic_email_task.apply_async(
-                    kwargs={
-                        'user_email': validated_data['user_email'],
-                        'email_type': validated_data['email_type'],
-                        'subject': validated_data['subject'],
-                        'action': validated_data['action'],
-                        'message': validated_data['message'],
-                        'otp': validated_data.get('otp'),
-                        'link': validated_data.get('link'),
-                        'link_text': validated_data.get('link_text'),
-                        'email_log_id': email_log.id
-                    }
-                )
+                # Pass all validated data to the task
+                task_kwargs = {
+                    'user_email': validated_data['user_email'],
+                    'email_type': validated_data.get('email_type'),
+                    'subject': validated_data.get('subject'),
+                    'action': validated_data.get('action'),
+                    'message': validated_data.get('message'),
+                    'otp': validated_data.get('otp'),
+                    'link': validated_data.get('link'),
+                    'link_text': validated_data.get('link_text'),
+                    'email_log_id': email_log.id
+                }
+                
+                # Add any additional fields from the request
+                for key, value in request.data.items():
+                    if key not in task_kwargs and key != 'user_email':
+                        task_kwargs[key] = value
+                
+                send_generic_email_task.apply_async(kwargs=task_kwargs)
             else:
                 email_log.status = 'pending'
                 email_log.error = 'Celery unavailable, email queued for later processing'
@@ -96,9 +79,10 @@ class EmailSendViewSet(viewsets.ViewSet):
 
             return Response({
                 'status': 'queued', 
-                'email_type': validated_data['email_type'], 
+                'email_type': validated_data.get('email_type', 'general'), 
                 'email': validated_data['user_email'],
-                'email_log_id': email_log.id
+                'email_log_id': email_log.id,
+                'auth_method': auth_method
             }, status=status.HTTP_200_OK)
             
         except Exception as e:
@@ -112,7 +96,7 @@ class EmailAdminViewSet(viewsets.ViewSet):
     """ViewSet for administrative email actions, restricted to superusers."""
     permission_classes = [IsSuperuser]
 
-    @swagger_auto_schema(operation_description="List email logs")
+    @swagger_helper("Email Admin", "EmailLog")
     @action(detail=False, methods=['get'], url_path='logs')
     def list_logs(self, request):
         queryset = EmailLog.objects.all()
@@ -161,7 +145,7 @@ class EmailAdminViewSet(viewsets.ViewSet):
             'results': serializer.data
         }, status=status.HTTP_200_OK)
     
-    @swagger_auto_schema(operation_description="Get email statistics")
+    @swagger_helper("Email Admin", "EmailStats")
     @action(detail=False, methods=['get'], url_path='stats')
     def email_stats(self, request):
         total_emails = EmailLog.objects.count()
@@ -182,7 +166,7 @@ class EmailAdminViewSet(viewsets.ViewSet):
         serializer = EmailStatsSerializer(stats_data)
         return Response(serializer.data, status=status.HTTP_200_OK)
     
-    @swagger_auto_schema(operation_description="Get email type statistics")
+    @swagger_helper("Email Admin", "EmailTypeStats")
     @action(detail=False, methods=['get'], url_path='type-stats')
     def email_type_stats(self, request):
         type_stats = EmailLog.objects.values('email_type').annotate(
@@ -207,20 +191,13 @@ class EmailConfigurationViewSet(viewsets.ViewSet):
     """ViewSet for email configuration, restricted to superusers."""
     permission_classes = [IsSuperuser]
     
-    @swagger_auto_schema(
-        operation_description="Get current email configuration",
-        responses={200: EmailConfigurationSerializer}
-    )
+    @swagger_helper("Email Configuration", "EmailConfiguration")
     def list(self, request):
         config = EmailConfiguration.get_instance()
         serializer = EmailConfigurationSerializer(config)
         return Response(serializer.data, status=status.HTTP_200_OK)
     
-    @swagger_auto_schema(
-        operation_description="Update email configuration",
-        request_body=EmailConfigurationSerializer,
-        responses={200: EmailConfigurationSerializer}
-    )
+    @swagger_helper("Email Configuration", "EmailConfiguration")
     def update(self, request, pk=None):
         config = EmailConfiguration.get_instance()
         serializer = EmailConfigurationSerializer(config, data=request.data, partial=True)
@@ -234,26 +211,22 @@ class EmailConfigurationViewSet(viewsets.ViewSet):
             'details': serializer.errors
         }, status=status.HTTP_400_BAD_REQUEST)
     
-    @swagger_auto_schema(
-        operation_description="Reset HMAC secret key",
-        responses={200: 'HMAC secret key reset successfully'}
-    )
-    @action(detail=False, methods=['post'], url_path='reset-hmac-secret')
-    def reset_hmac_secret(self, request):
+    @swagger_helper("Email Configuration", "JWTSecret")
+    @action(detail=False, methods=['post'], url_path='reset-jwt-secret')
+    def reset_jwt_secret(self, request):
         import secrets
-        config = EmailConfiguration.get_instance()
-        config.hmac_secret_key = secrets.token_urlsafe(32)
-        config.save()
+        from django.conf import settings
+        
+        print("Resetting JWT secret key")
+        new_secret = secrets.token_urlsafe(64)
         
         return Response({
-            'message': 'HMAC secret key reset successfully',
-            'note': 'All existing HMAC signatures are now invalid'
+            'message': 'JWT secret key reset successfully',
+            'new_secret': new_secret,
+            'note': 'Update all microservices with the new secret. All existing microservice tokens will be invalidated.'
         }, status=status.HTTP_200_OK)
     
-    @swagger_auto_schema(
-        operation_description="Test SMTP connection",
-        responses={200: 'SMTP connection test successful'}
-    )
+    @swagger_helper("Email Configuration", "SMTPTest")
     @action(detail=False, methods=['post'], url_path='test-smtp')
     def test_smtp_connection(self, request):
         from django.core.mail import get_connection

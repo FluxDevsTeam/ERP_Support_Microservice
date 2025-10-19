@@ -34,7 +34,14 @@ class EmailConfiguration(models.Model):
     terms_of_service = models.URLField(blank=True, help_text="Terms of service URL")
     site_url = models.URLField(blank=True, help_text="Main website URL")
     
-
+    # SMTP Configuration
+    email_backend = models.CharField(max_length=100, default='django.core.mail.backends.smtp.EmailBackend', help_text="Email backend to use")
+    smtp_host = models.CharField(max_length=255, blank=True, help_text="SMTP server hostname")
+    smtp_port = models.PositiveIntegerField(default=587, help_text="SMTP server port")
+    smtp_username = models.CharField(max_length=255, blank=True, help_text="SMTP username")
+    smtp_password = models.CharField(max_length=255, blank=True, help_text="SMTP password")
+    smtp_use_tls = models.BooleanField(default=True, help_text="Use TLS for SMTP connection")
+    smtp_use_ssl = models.BooleanField(default=False, help_text="Use SSL for SMTP connection")
     
     # Social media links
     facebook_link = models.URLField(blank=True, help_text="Facebook page URL")

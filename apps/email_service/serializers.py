@@ -130,7 +130,7 @@ class EmailConfigurationSerializer(serializers.ModelSerializer):
         model = EmailConfiguration
         fields = [
             'id', 'support_email', 'support_phone_number', 'brand_name',
-            'brand_logo', 'terms_of_service', 'site_url', 'hmac_secret_key',
+            'brand_logo', 'terms_of_service', 'site_url',
             'facebook_link', 'instagram_link', 'twitter_link', 'linkedin_link',
             'tiktok_link', 'created_at', 'updated_at'
         ]
