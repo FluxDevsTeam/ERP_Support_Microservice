@@ -15,7 +15,7 @@ from .serializers import (
     EmailTypeStatsSerializer,
     EmailConfigurationSerializer
 )
-from .utils import swagger_helper
+from .utils import swagger_helper 
 
 
 class EmailSendViewSet(viewsets.ViewSet):
@@ -211,21 +211,23 @@ class EmailConfigurationViewSet(viewsets.ViewSet):
             'details': serializer.errors
         }, status=status.HTTP_400_BAD_REQUEST)
     
+
     @swagger_helper("Email Configuration", "JWTSecret")
     @action(detail=False, methods=['post'], url_path='reset-jwt-secret')
     def reset_jwt_secret(self, request):
-        import secrets
-        from django.conf import settings
+        from django.core.management import call_command
         
-        print("Resetting JWT secret key")
-        new_secret = secrets.token_urlsafe(64)
-        
-        return Response({
-            'message': 'JWT secret key reset successfully',
-            'new_secret': new_secret,
-            'note': 'Update all microservices with the new secret. All existing microservice tokens will be invalidated.'
-        }, status=status.HTTP_200_OK)
-    
+        try:
+            call_command('reset_jwt_secret')
+            return Response({
+                'message': 'JWT secret key reset successfully'
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({
+                'error': 'Failed to reset JWT secret',
+                'details': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
     @swagger_helper("Email Configuration", "SMTPTest")
     @action(detail=False, methods=['post'], url_path='test-smtp')
     def test_smtp_connection(self, request):

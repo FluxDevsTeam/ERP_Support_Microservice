@@ -13,6 +13,5 @@ urlpatterns = [
     
     # Email Configuration URLs
     path('config/', EmailConfigurationViewSet.as_view({'get': 'list', 'put': 'update'}), name='email_config'),
-    path('config/reset-hmac-secret/', EmailConfigurationViewSet.as_view({'post': 'reset_hmac_secret'}), name='reset_hmac_secret'),
     path('config/test-smtp/', EmailConfigurationViewSet.as_view({'post': 'test_smtp_connection'}), name='test_smtp_connection'),
 ]
