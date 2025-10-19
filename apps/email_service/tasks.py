@@ -1,3 +1,4 @@
+# apps/email_service/tasks.py
 from celery import shared_task, current_app
 from .utils import send_generic_email
 from .models import EmailLog
@@ -11,7 +12,7 @@ def is_celery_healthy():
         return False
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=60)
-def send_generic_email_task(self, user_email, email_type, subject, action, message, otp=None, link=None, link_text=None, email_log_id=None):
+def send_generic_email_task(self, user_email, email_type=None, subject=None, action=None, message=None, otp=None, link=None, link_text=None, email_log_id=None, **kwargs):
 
     start_time = timezone.now()
     email_log = None
@@ -49,7 +50,7 @@ def send_generic_email_task(self, user_email, email_type, subject, action, messa
         email_log.status = 'processing'
         email_log.save(update_fields=['status'])
 
-        # Send email
+        # Send email with all parameters
         result = send_generic_email(
             user_email=user_email,
             email_type=email_type,
@@ -58,7 +59,8 @@ def send_generic_email_task(self, user_email, email_type, subject, action, messa
             message=message,
             otp=otp,
             link=link,
-            link_text=link_text
+            link_text=link_text,
+            **kwargs  # Pass any additional fields
         )
 
         # Update log on success
@@ -101,4 +103,4 @@ def send_generic_email_task(self, user_email, email_type, subject, action, messa
             if email_log:
                 email_log.error = f"Max retries exceeded: {error_msg}"
                 email_log.save(update_fields=['error'])
-            return {"status": "failure", "email_type": email_type, "email": user_email, "error": f"Max retries exceeded: {error_msg}"}
+            return {"status": "failure", "email": user_email, "error": f"Max retries exceeded: {error_msg}"}

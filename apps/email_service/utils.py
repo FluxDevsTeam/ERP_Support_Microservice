@@ -3,47 +3,65 @@ from django.core.mail import send_mail
 from django.template import Template, Context
 from datetime import datetime
 from django.conf import settings
+from drf_yasg.utils import swagger_auto_schema
 
 
-def send_generic_email(user_email, email_type, subject, action, message, otp=None, link=None, link_text=None):
+def swagger_helper(tags, model, description=None):
+    def decorators(func):
+        descriptions = {
+            "list": f"Retrieve a list of {model}",
+            "retrieve": f"Retrieve details of a specific {model}",
+            "create": f"Create a new {model}",
+            "partial_update": f"Update a {model}",
+            "destroy": f"Delete a {model}",
+        }
+
+        action_type = func.__name__
+        if not description:
+            get_description = descriptions.get(action_type, f"{action_type} {model}")
+            return swagger_auto_schema(operation_id=f"{action_type} {model}", operation_description=get_description, tags=[tags])(func)
+        return swagger_auto_schema(operation_id=f"{action_type} {model}", operation_description=description, tags=[tags])(func)
+
+    return decorators
+
+
+
+def send_generic_email(user_email, email_type=None, subject=None, action=None, message=None, otp=None, link=None, link_text=None, **kwargs):
     from .models import EmailConfiguration
     try:
+        # Basic email validation
         if not user_email or not isinstance(user_email, str):
             raise ValueError("Invalid user_email: must be a non-empty string")
 
         if '@' not in user_email or '.' not in user_email.split('@')[-1]:
             raise ValueError("Invalid email format")
 
-        valid_email_types = ['otp', 'confirmation', 'reset_link']
-        if email_type not in valid_email_types:
-            raise ValueError(f"Invalid email_type: must be one of {valid_email_types}")
-
-        if not subject or not isinstance(subject, str) or len(subject.strip()) == 0:
-            raise ValueError("Invalid subject: must be a non-empty string")
-
-        if not message or not isinstance(message, str) or len(message.strip()) == 0:
-            raise ValueError("Invalid message: must be a non-empty string")
-
-        if email_type == 'otp' and (not otp or not isinstance(otp, str)):
-            raise ValueError("OTP is required for otp email type")
-
-        if email_type == 'reset_link' and (not link or not isinstance(link, str)):
-            raise ValueError("Link is required for reset_link email type")
-
         user_email = user_email.strip().lower()
+        
+        # Set defaults for optional fields
+        email_type = email_type or 'general'
+        subject = subject or 'Notification'
+        action = action or 'notification'
+        message = message or 'You have a new notification.'
+        
+        # Clean and sanitize inputs
         subject = subject.strip()
-        action = action.strip() if action else ''
+        action = action.strip()
         message = message.strip()
+        otp = otp.strip() if otp else None
+        link = link.strip() if link else None
+        link_text = link_text.strip() if link_text else None
 
         email_config = EmailConfiguration.get_instance()
 
+        # Build dynamic context with all available data
         context = {
             'subject': subject,
             'action': action,
             'message': message,
             'otp': otp,
             'link': link,
-            'link_text': link_text or 'Click here',
+            'link_text': link_text,
             'site_url': email_config.site_url or getattr(settings, 'SITE_URL', ''),
             'current_year': datetime.now().year,
             'support_email': email_config.support_email,
@@ -58,6 +76,9 @@ def send_generic_email(user_email, email_type, subject, action, message, otp=Non
             'linkedin_link': email_config.linkedin_link,
             'tiktok_link': email_config.tiktok_link,
         }
+        
+        # Add any additional kwargs to context
+        context.update(kwargs)
 
         # Template paths
         html_template_path = os.path.join(settings.BASE_DIR, 'apps', 'email_service', 'templates', 'generic_email.html')
@@ -99,17 +120,17 @@ def send_generic_email(user_email, email_type, subject, action, message, otp=Non
             fail_silently=False,
         )
 
-        return {"status": "success", "email_type": email_type, "email": user_email}
+        return {"status": "success", "email": user_email}
 
     except ValueError as e:
-        return {"status": "failure", "email_type": email_type, "email": user_email,
+        return {"status": "failure", "email": user_email,
                 "error": f"Validation error: {str(e)}"}
     except FileNotFoundError as e:
-        return {"status": "failure", "email_type": email_type, "email": user_email,
+        return {"status": "failure", "email": user_email,
                 "error": f"Template error: {str(e)}"}
     except RuntimeError as e:
-        return {"status": "failure", "email_type": email_type, "email": user_email,
+        return {"status": "failure", "email": user_email,
                 "error": f"Configuration error: {str(e)}"}
     except Exception as e:
-        return {"status": "failure", "email_type": email_type, "email": user_email,
+        return {"status": "failure", "email": user_email,
                 "error": f"Unexpected error: {str(e)}"}
