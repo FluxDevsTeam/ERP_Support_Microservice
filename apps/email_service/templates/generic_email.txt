@@ -1,6 +1,6 @@
 {{ subject }}
 
-Dear {% if brand_name %} {{brand_name}} {% else %} KidsDesignCompany {% endif %} User,
+Dear {{ brand_name|default:"KidsDesignCompany" }} User,
 
 {{ message }}
 
@@ -13,42 +13,33 @@ Click the link below to proceed:
 {{ link }}
 {% endif %}
 
+{% for key, value in additional_data.items %}
+{% if value and key not in excluded_fields %}
+{{ key|title }}: {{ value }}
+{% endif %}
+{% endfor %}
+
 Visit: {{ site_url }}
 
 {% if support_phone_number or support_email %}
 We Are Here to Help
 Have questions? Our support team is available anytime.
 
-{% if support_email %} {{support_email}} for email support {% endif %} {% if support_phone_number %} | {{support_phone_number}} {% endif %}
+{% if support_email %}{{ support_email }} for email support{% endif %}{% if support_phone_number %} | {{ support_phone_number }}{% endif %}
 
 {% endif %}
-
 
 Best regards,
-The {{brand_name}}Team
+The {{ brand_name|default:"KidsDesignCompany" }} Team
 
 {% if social_true %}
-  Connect with us:
-    {% if fb_link %}
-    Facebook: {{ fb_link }}
-    {% endif %}
-
-  {% if x_link %}
-  X (Twitter): {{ x_link }}
-  {% endif %}
-
-  {% if ig_link %}
-  Instagram: {{ ig_link }}
-  {% endif %}
-
-  {% if linkedin_link %}
-  LinkedIn: {{ linkedin_link }}
-  {% endif %}
-
-  {% if tiktok_link %}
-    TikTok: {{ tiktok_link }}
-  {% endif %}
+Connect with us:
+{% if fb_link %}Facebook: {{ fb_link }}{% endif %}
+{% if x_link %}X (Twitter): {{ x_link }}{% endif %}
+{% if ig_link %}Instagram: {{ ig_link }}{% endif %}
+{% if linkedin_link %}LinkedIn: {{ linkedin_link }}{% endif %}
+{% if tiktok_link %}TikTok: {{ tiktok_link }}{% endif %}
 {% endif %}
 
-{{ current_year }} {% if brand_name %} {{brand_name}} {% else %} KidsDesignCompany {% endif %} All rights reserved.
-Privacy Policy: {{ site_url }}/privacy | Terms of Service: {{terms_of_service}}
+{{ current_year }} {{ brand_name|default:"KidsDesignCompany" }} All rights reserved.
+Privacy Policy: {{ site_url }}/privacy{% if terms_of_service %} | Terms of Service: {{ terms_of_service }}{% endif %}

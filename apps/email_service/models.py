@@ -2,8 +2,6 @@
 from django.db import models
 from django.core.exceptions import ValidationError
 import os
-import secrets
-import string
 
 
 class EmailLog(models.Model):
@@ -36,12 +34,7 @@ class EmailConfiguration(models.Model):
     terms_of_service = models.URLField(blank=True, help_text="Terms of service URL")
     site_url = models.URLField(blank=True, help_text="Main website URL")
     
-    # HMAC Authentication
-    hmac_secret_key = models.CharField(
-        max_length=255, 
-        blank=True, 
-        help_text="HMAC secret key for microservice authentication (auto-generated if empty)"
-    )
+
     
     # Social media links
     facebook_link = models.URLField(blank=True, help_text="Facebook page URL")
@@ -57,14 +50,9 @@ class EmailConfiguration(models.Model):
         return f"Email Configuration - {self.brand_name}"
 
     def save(self, *args, **kwargs):
-        """Ensure only one configuration exists and generate HMAC secret if needed"""
+        """Ensure only one configuration exists"""
         if not self.pk and EmailConfiguration.objects.exists():
             raise ValidationError("Only one EmailConfiguration instance is allowed")
-        
-        # Generate HMAC secret key if not provided
-        if not self.hmac_secret_key:
-            alphabet = string.ascii_letters + string.digits + string.punctuation
-            self.hmac_secret_key = ''.join(secrets.choice(alphabet) for _ in range(64))
         
         super().save(*args, **kwargs)
 
