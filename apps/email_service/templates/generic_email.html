@@ -1,41 +1,59 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
-  <title>{{ subject }} - {% if brand_name %} {{ brand_name }} {% else %} KidsDesignCompany {% endif %}</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>{{ subject|default:"Email Notification" }}</title>
+  <!--[if mso]>
+  <noscript>
+    <xml>
+      <o:OfficeDocumentSettings>
+        <o:AllowPNG/>
+        <o:PixelsPerInch>96</o:PixelsPerInch>
+      </o:OfficeDocumentSettings>
+    </xml>
+  </noscript>
+  <![endif]-->
   <style>
+    /* Reset styles */
+    body, table, td, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+    table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
+    img { -ms-interpolation-mode: bicubic; border: 0; outline: none; text-decoration: none; }
+    
+    /* Base styles */
     body {
-      margin: 0;
-      padding: 10px;
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
-      line-height: 1.6;
-      color: #333;
+      margin: 0;
+      padding: 0;
       background-color: #f4f4f4;
+      color: #333333;
+      line-height: 1.6;
     }
-
+    
+    /* Container */
     .container {
       padding: 10px;
     }
-
+    
+    /* Email wrapper */
     .email-wrapper {
       width: 100%;
       max-width: 600px;
       margin: auto;
-      background: #fff;
+      background: #ffffff;
       border-radius: 12px;
       overflow: hidden;
       box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
     }
-
+    
+    /* Header */
     .header {
       background: linear-gradient(135deg, #008080 0%, #00a3a3 100%);
-      color: #fff;
+      color: #ffffff;
       text-align: center;
       padding: 30px 20px;
     }
-
     .header img {
       width: 80px;
       height: 80px;
@@ -45,55 +63,64 @@
       margin-left: auto;
       margin-right: auto;
     }
-
     .header h1 {
       font-size: 28px;
       font-weight: 700;
       margin: 0;
+      word-wrap: break-word;
     }
-
     .header p {
       font-size: 16px;
       margin: 10px 0 0;
       opacity: 0.9;
     }
-
+    
+    /* Content */
     .content {
       padding: 30px;
       background-color: #f9f9f9;
     }
-
     .content h2 {
       font-size: 22px;
       font-weight: 600;
       color: #008080;
       margin-bottom: 15px;
     }
-
     .content p {
       font-size: 16px;
-      color: #555;
+      color: #555555;
       margin-bottom: 15px;
+      word-wrap: break-word;
     }
-
+    
+    /* OTP */
     .otp {
       color: #008080;
       font-weight: bold;
+      font-family: 'Courier New', monospace;
+      letter-spacing: 2px;
     }
-
+    
+    /* Button */
     .button {
       display: inline-block;
       padding: 12px 30px;
       background: #008080;
-      color: #fff;
+      color: #ffffff;
       text-decoration: none;
       font-weight: 600;
       font-size: 16px;
       border-radius: 50px;
       text-align: center;
       border: 2px solid #008080;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
     }
-
+    .button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 15px rgba(0, 128, 128, 0.3);
+    }
+    
+    /* Support box */
     .support-box {
       background: #f8fafc;
       padding: 20px;
@@ -101,26 +128,27 @@
       text-align: center;
       margin-top: 20px;
     }
-
     .support-box h3 {
       font-size: 18px;
       font-weight: 600;
       color: #008080;
       margin-bottom: 10px;
     }
-
     .support-box p {
       font-size: 14px;
-      color: #555;
+      color: #555555;
       margin-bottom: 10px;
     }
-
     .support-box a {
       color: #008080;
       text-decoration: none;
       font-weight: 500;
     }
-
+    .support-box a:hover {
+      text-decoration: underline;
+    }
+    
+    /* Footer */
     .footer {
       text-align: center;
       font-size: 12px;
@@ -129,27 +157,36 @@
       background: #f8fafc;
       border-top: 1px solid #e5e7eb;
     }
-
+    .footer p {
+      margin: 0 0 10px 0;
+    }
     .footer a {
       color: #008080;
       text-decoration: none;
       font-weight: 500;
     }
-
+    .footer a:hover {
+      text-decoration: underline;
+    }
+    
+    /* Social icons */
     .social-icons td {
       padding: 0 6px;
     }
-
     .social-icons img {
       width: 16px;
       height: 16px;
       display: block;
     }
-
+    
+    /* Responsive */
     @media screen and (max-width: 600px) {
-      .email-wrapper { width: 100% !important; }
+      body { padding: 0; }
+      .container { padding: 5px; }
+      .email-wrapper { width: 100% !important; border-radius: 0; }
+      .header { padding: 20px 15px; }
       .header h1 { font-size: 22px; }
-      .content { padding: 20px !important; }
+      .content { padding: 20px 15px; }
       .content h2 { font-size: 20px; }
       .content p, .support-box p { font-size: 14px; }
       .button { padding: 10px 25px; font-size: 14px; }
@@ -157,89 +194,103 @@
       .footer { font-size: 11px; }
       .social-icons img { width: 14px; height: 14px; }
     }
+    
+    /* Dark mode */
+    @media (prefers-color-scheme: dark) {
+      body { background-color: #1a1a1a !important; color: #ffffff !important; }
+      .email-wrapper { background: #2d2d2d !important; }
+      .content { background-color: #3d3d3d !important; color: #ffffff !important; }
+      .support-box, .footer { background: #3d3d3d !important; color: #ffffff !important; }
+    }
   </style>
 </head>
 <body>
-  <div class="container">
-    <table class="email-wrapper" cellpadding="0" cellspacing="0">
-      <tr>
-        <td class="header">
-          <img src="https://tse4.mm.bing.net/th/id/OIP.rcKRRDLHGEu5lWcn6vbKcAHaHa?rs=1&pid=ImgDetMain" alt="{% if brand_name %} {{ brand_name }} {% else %} KidsDesignCompany {% endif %}">
-          <h1>{{ subject }}</h1>
-          <p>Your {% if brand_name %} {{ brand_name }} {% else %} KidsDesignCompany {% endif %} Account</p>
-        </td>
-      </tr>
-      <tr>
-        <td class="content">
-          <h2>{{ action|capfirst }}</h2>
-          <p>{{ message|safe }}</p>
-          {% if otp %}
-          <p>Your OTP is: <span class="otp">{{ otp }}</span>. It expires in 5 minutes.</p>
-          {% endif %}
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+    <tr>
+      <td style="padding: 10px 0;">
+        <div class="container">
+          <table class="email-wrapper" cellpadding="0" cellspacing="0" role="presentation">
+            <tr>
+              <td class="header">
+                <img src="{{ brand_logo|default:'https://tse4.mm.bing.net/th/id/OIP.rcKRRDLHGEu5lWcn6vbKcAHaHa?rs=1&pid=ImgDetMain' }}" alt="{% if brand_name %} {{ brand_name }} {% else %} KidsDesignCompany {% endif %}">
+                <h1>{{ subject|default:"Email Notification" }}</h1>
+                <p>Your {% if brand_name %} {{ brand_name %} {% else %} KidsDesignCompany {% endif %} Account</p>
+              </td>
+            </tr>
+            <tr>
+              <td class="content">
+                <h2>{{ action|capfirst|default:"Action Required" }}</h2>
+                <p>{{ message|safe }}</p>
+                
+                {% if otp %}
+                <p>Your OTP is: <span class="otp">{{ otp }}</span>. It expires in 5 minutes.</p>
+                {% endif %}
 
-          {% if link %}
-            <p>Click the link below to proceed:</p>
-            <a href="{{ link }}" class="button">{{ link_text|default:"Take Action" }}</a>
-          {% endif %}
-          
-          {% if support_email or support_phone_number %}
-            <table class="support-box" width="100%">
-                <tr>
-                  <td>
-                    <h3>We Are Here to Help</h3>
-                    <p>Have questions? Our support team is available anytime.</p>
-                    <p>
-                      {% if support_email %}
-                      <a href="mailto:{{ support_email }}">support@{{ brand_name }}</a>
+                {% if link %}
+                  <p>Click the link below to proceed:</p>
+                  <a href="{{ link }}" class="button" target="_blank" rel="noopener noreferrer">{{ link_text|default:"Take Action" }}</a>
+                {% endif %}
+                
+                {% if support_email or support_phone_number %}
+                  <table class="support-box" width="100%" cellpadding="0" cellspacing="0" role="presentation">
+                    <tr>
+                      <td>
+                        <h3>We Are Here to Help</h3>
+                        <p>Have questions? Our support team is available anytime.</p>
+                        <p>
+                          {% if support_email %}
+                          <a href="mailto:{{ support_email }}">support@{{ brand_name|default:"KidsDesignCompany" }}</a>
+                          {% endif %}
+                          {% if support_phone_number %} |
+                          <a href="tel:{{ support_phone_number }}">{{ support_phone_number }}</a>
+                          {% endif %}
+                        </p>
+                      </td>
+                    </tr>
+                  </table>
+                {% endif %}
+              </td>
+            </tr>
+            <tr>
+              <td class="footer">
+                <p>Best regards,<br>
+                  <a href="{{ site_url|default:"#" }}">The {% if brand_name %} {{ brand_name }} {% else %} KidsDesignCompany {% endif %} Team</a>
+                </p>
+                {% if social_true %}
+                  <p>Connect with us:</p>
+                  <table align="center" class="social-icons" cellpadding="0" cellspacing="0" role="presentation">
+                    <tr>
+                      {% if fb_link %}
+                      <td><a href="{{ fb_link }}" target="_blank" rel="noopener noreferrer"><img src="https://cdn-icons-png.flaticon.com/64/5968/5968764.png" alt="Facebook" /></a></td>
                       {% endif %}
-                      {% if support_phone_number %} |
-                      <a href="tel:{{ support_phone_number }}">{{ support_phone_number }}</a>
+                      {% if x_link %}
+                      <td><a href="{{ x_link }}" target="_blank" rel="noopener noreferrer"><img src="https://cdn-icons-png.flaticon.com/64/733/733635.png" alt="Twitter/X" /></a></td>
                       {% endif %}
-                    </p>
-                  </td>
-                </tr>
-              </table>
-          {% endif %}
-
-        </td>
-      </tr>
-      <tr>
-        <td class="footer">
-          <p>Best regards,<br>
-            <a href="{{ site_url }}">The {% if brand_name %} {{ brand_name }} {% else %} KidsDesignCompany {% endif %} Team</a>
-          </p>
-          {% if social_true %}
-            <p>Connect with us:</p>
-            <table align="center" class="social-icons">
-              <tr>
-                {% if fb_link %}
-                <td><a href="{{ fb_link }}"><img src="https://cdn-icons-png.flaticon.com/64/5968/5968764.png" alt="Facebook" /></a></td>
+                      {% if ig_link %}
+                      <td><a href="{{ ig_link }}" target="_blank" rel="noopener noreferrer"><img src="https://cdn-icons-png.flaticon.com/64/2111/2111463.png" alt="Instagram" /></a></td>
+                      {% endif %}
+                      {% if linkedin_link %}
+                      <td><a href="{{ linkedin_link }}" target="_blank" rel="noopener noreferrer"><img src="https://cdn-icons-png.flaticon.com/64/3536/3536505.png" alt="LinkedIn" /></a></td>
+                      {% endif %}
+                      {% if tiktok_link %}
+                      <td><a href="{{ tiktok_link }}" target="_blank" rel="noopener noreferrer"><img src="https://cdn-icons-png.flaticon.com/64/3046/3046121.png" alt="TikTok" /></a></td>
+                      {% endif %}
+                    </tr>
+                  </table>
                 {% endif %}
-                {% if x_link %}
-                <td><a href="{{ x_link }}"><img src="https://cdn-icons-png.flaticon.com/64/733/733635.png" alt="Twitter/X" /></a></td>
-                {% endif %}
-                {% if ig_link %}
-                <td><a href="{{ ig_link }}"><img src="https://cdn-icons-png.flaticon.com/64/2111/2111463.png" alt="Instagram" /></a></td>
-                {% endif %}
-                {% if linkedin_link %}
-                <td><a href="{{ linkedin_link }}"><img src="https://cdn-icons-png.flaticon.com/64/3536/3536505.png" alt="LinkedIn" /></a></td>
-                {% endif %}
-                {% if tiktok_link %}
-                <td><a href="{{ tiktok_link }}"><img src="https://cdn-icons-png.flaticon.com/64/3046/3046121.png" alt="TikTok" /></a></td>
-                {% endif %}
-              </tr>
-            </table>
-          {% endif %}
-          <p>
-            {{ current_year|escape }} {% if brand_name %} {{ brand_name }} {% else %} KidsDesignCompany {% endif %} All rights reserved.
-          </p>
-          <p>
-            <a href="{{ site_url }}/privacy">Privacy Policy</a>
-            {% if terms_of_service %} | <a href="{{ terms_of_service }}">Terms of Service</a>{% endif %}
-          </p>
-        </td>
-      </tr>
-    </table>
-  </div>
+                <p>
+                  © {{ current_year|escape }} {% if brand_name %} {{ brand_name }} {% else %} KidsDesignCompany {% endif %}. All rights reserved.
+                </p>
+                <p>
+                  <a href="{{ site_url|default:"#" }}/privacy">Privacy Policy</a>
+                  {% if terms_of_service %} | <a href="{{ terms_of_service }}" target="_blank" rel="noopener noreferrer">Terms of Service</a>{% endif %}
+                </p>
+              </td>
+            </tr>
+          </table>
+        </div>
+      </td>
+    </tr>
+  </table>
 </body>
 </html>
