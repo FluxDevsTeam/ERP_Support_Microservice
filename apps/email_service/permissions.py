@@ -1,90 +1,96 @@
 # apps/email_service/permissions.py
-import hmac
-import hashlib
-import base64
+import jwt
 from rest_framework import permissions
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.exceptions import AuthenticationFailed
 from django.conf import settings
-from .models import EmailConfiguration
-import logging
-from datetime import datetime, timedelta
-import json
-
-logger = logging.getLogger('apps.email_service')
 
 class IsSuperuser(permissions.BasePermission):
     def has_permission(self, request, view):
-        logger.debug(f"Checking IsSuperuser: user={request.user}, authenticated={request.user.is_authenticated}, superuser={request.user.is_superuser}")
+        print(f"Checking IsSuperuser: user={request.user}, authenticated={request.user.is_authenticated}, superuser={request.user.is_superuser}")
         return request.user and request.user.is_authenticated and request.user.is_superuser
 
-class IsHMACAuthenticated(permissions.BasePermission):
-    """Permission to verify HMAC signature for microservice-to-microservice requests."""
+class IsMicroserviceJWT(permissions.BasePermission):
+    """Permission to verify JWT for microservice-to-microservice requests."""
     
     def has_permission(self, request, view):
-        # Get the HMAC signature and timestamp from headers
-        signature = request.headers.get('X-HMAC-Signature')
-        timestamp = request.headers.get('X-Timestamp')
-        service_name = request.headers.get('X-Service-Name', 'identity-ms')
-        logger.debug(f"HMAC: Received Signature={signature}, Timestamp={timestamp}, Service={service_name}")
+        # Get the JWT token from microservice-specific header
+        jwt_token = request.headers.get('Support-Microservice-Auth')
+        print(f"Microservice JWT: Received Support-Microservice-Auth header")
 
-        if not signature or not timestamp:
-            logger.debug("Missing HMAC signature or timestamp")
-            raise AuthenticationFailed('Missing HMAC signature or timestamp')
+        if not jwt_token:
+            print("Missing Support-Microservice-Auth header")
+            raise AuthenticationFailed('Missing microservice authentication header')
 
         try:
-            # Get the shared secret from EmailConfiguration
-            config = EmailConfiguration.get_instance()
-            shared_secret = config.hmac_secret_key
-            logger.debug(f"HMAC Secret Key: {shared_secret}")
+            # Get the JWT secret from settings
+            jwt_secret = settings.SUPPORT_JWT_SECRET_KEY
+            print(f"SUPPORT_JWT_SECRET_KEY configured: {bool(jwt_secret)}")
 
-            if not shared_secret:
-                logger.debug("HMAC secret key not configured")
-                raise AuthenticationFailed('HMAC secret key not configured')
+            if not jwt_secret:
+                print("SUPPORT_JWT_SECRET_KEY not configured in settings")
+                raise AuthenticationFailed('Microservice JWT secret key not configured')
 
-            # Construct the message to verify
-            payload_str = request.body.decode('utf-8')
-            message = f"{request.method}{request.path}{timestamp}{payload_str}"
-            logger.debug(f"HMAC Message: {message}")
-            logger.debug(f"Payload String: {payload_str}")
-
-            computed_signature = hmac.new(
-                key=shared_secret.encode('utf-8'),
-                msg=message.encode('utf-8'),
-                digestmod=hashlib.sha256
-            ).digest()
-            computed_signature_b64 = base64.b64encode(computed_signature).decode('utf-8')
-            logger.debug(f"Computed HMAC Signature: {computed_signature_b64}")
-
-            # Compare signatures securely
-            if not hmac.compare_digest(computed_signature_b64, signature):
-                logger.debug(f"Signature Mismatch: Received={signature}, Computed={computed_signature_b64}")
-                raise AuthenticationFailed('Invalid HMAC signature')
-
-            # Validate timestamp to prevent replay attacks
-            try:
-                request_time = datetime.fromisoformat(timestamp)
-                current_time = datetime.now()
-                if abs((current_time - request_time).total_seconds()) > 300:  # 5-minute window
-                    logger.debug("Timestamp too old")
-                    raise AuthenticationFailed('Timestamp too old or invalid')
-            except ValueError:
-                logger.debug("Invalid timestamp format")
-                raise AuthenticationFailed('Invalid timestamp format')
-
-            logger.debug("HMAC Authentication successful")
+            # Decode and verify the JWT token
+            payload = jwt.decode(
+                jwt_token, 
+                jwt_secret, 
+                algorithms=['HS256'],
+                options={'verify_exp': True}
+            )
+            
+            print(f"Microservice JWT Payload: {payload}")
+            
+            # Verify this is a microservice token
+            if payload.get('type') != 'microservice':
+                print("Invalid microservice token type")
+                raise AuthenticationFailed('Invalid microservice token type')
+            
+            # Store microservice info in request for logging
+            request.microservice_name = payload.get('service', 'unknown')
+            print(f"Authenticated microservice: {request.microservice_name}")
+            
+            print("Microservice JWT Authentication successful")
             return True
+            
+        except jwt.ExpiredSignatureError:
+            print("Microservice JWT token has expired")
+            raise AuthenticationFailed('Microservice token has expired')
+        except jwt.InvalidTokenError as e:
+            print(f"Invalid microservice JWT token: {str(e)}")
+            raise AuthenticationFailed(f'Invalid microservice token: {str(e)}')
         except Exception as e:
-            logger.error(f"HMAC Authentication failed: {str(e)}")
-            raise AuthenticationFailed(f'Authentication failed: {str(e)}')
+            print(f"Microservice JWT Authentication failed: {str(e)}")
+            raise AuthenticationFailed(f'Microservice authentication failed: {str(e)}')
 
 class AllowAnySendEmail(permissions.BasePermission):
-    """Allow email sending with HMAC authentication or superuser JWT."""
+    """Allow email sending with microservice JWT or superuser JWT."""
     
     def has_permission(self, request, view):
-        logger.debug(f"Checking AllowAnySendEmail for action: {view.action}")
+        print(f"Checking AllowAnySendEmail for action: {view.action}")
+        
         if view.action == 'send_email':
-            result = IsHMACAuthenticated().has_permission(request, view) or IsSuperuser().has_permission(request, view)
-            logger.debug(f"AllowAnySendEmail result: {result}")
-            return result
+            # Try microservice authentication first
+            try:
+                microservice_auth = IsMicroserviceJWT().has_permission(request, view)
+                if microservice_auth:
+                    print("AllowAnySendEmail: Authenticated via microservice JWT")
+                    return True
+            except AuthenticationFailed as e:
+                print(f"Microservice auth failed: {str(e)}")
+                # Continue to try superuser auth
+            
+            # Try superuser authentication
+            try:
+                superuser_auth = IsSuperuser().has_permission(request, view)
+                if superuser_auth:
+                    print("AllowAnySendEmail: Authenticated via superuser JWT")
+                    return True
+            except AuthenticationFailed as e:
+                print(f"Superuser auth failed: {str(e)}")
+            
+            print("AllowAnySendEmail: Both authentication methods failed")
+            return False
+        
+        # For other actions, only allow superusers
         return IsSuperuser().has_permission(request, view)
