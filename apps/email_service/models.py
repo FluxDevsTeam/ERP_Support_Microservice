@@ -1,5 +1,10 @@
 # apps/email_service/models.py
 from django.db import models
+from django.core.exceptions import ValidationError
+import os
+import secrets
+import string
+
 
 class EmailLog(models.Model):
     email = models.EmailField()
@@ -20,3 +25,85 @@ class EmailLog(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+
+
+class EmailConfiguration(models.Model):
+    """Singleton model for email service configuration"""
+    support_email = models.EmailField(blank=True, help_text="Support email address")
+    support_phone_number = models.CharField(max_length=20, blank=True, help_text="Support phone number")
+    brand_name = models.CharField(max_length=100, default="KidsDesignCompany", help_text="Brand name for emails")
+    brand_logo = models.ImageField(upload_to='email_logos/', blank=True, null=True, help_text="Brand logo image")
+    terms_of_service = models.URLField(blank=True, help_text="Terms of service URL")
+    site_url = models.URLField(blank=True, help_text="Main website URL")
+    
+    # HMAC Authentication
+    hmac_secret_key = models.CharField(
+        max_length=255, 
+        blank=True, 
+        help_text="HMAC secret key for microservice authentication (auto-generated if empty)"
+    )
+    
+    # Social media links
+    facebook_link = models.URLField(blank=True, help_text="Facebook page URL")
+    instagram_link = models.URLField(blank=True, help_text="Instagram profile URL")
+    twitter_link = models.URLField(blank=True, help_text="Twitter/X profile URL")
+    linkedin_link = models.URLField(blank=True, help_text="LinkedIn profile URL")
+    tiktok_link = models.URLField(blank=True, help_text="TikTok profile URL")
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Email Configuration - {self.brand_name}"
+
+    def save(self, *args, **kwargs):
+        """Ensure only one configuration exists and generate HMAC secret if needed"""
+        if not self.pk and EmailConfiguration.objects.exists():
+            raise ValidationError("Only one EmailConfiguration instance is allowed")
+        
+        # Generate HMAC secret key if not provided
+        if not self.hmac_secret_key:
+            alphabet = string.ascii_letters + string.digits + string.punctuation
+            self.hmac_secret_key = ''.join(secrets.choice(alphabet) for _ in range(64))
+        
+        super().save(*args, **kwargs)
+
+    def get_brand_logo_url(self):
+        """Get the brand logo URL, handling both relative and absolute paths"""
+        if self.brand_logo:
+            return self.brand_logo.url
+        
+        from django.conf import settings
+        if hasattr(settings, 'BRAND_LOGO_FILENAME'):
+            logo_path = os.path.join(
+                settings.MEDIA_URL,
+                'email_logos',
+                settings.BRAND_LOGO_FILENAME
+            )
+            return logo_path
+        
+        return 'https://tse4.mm.bing.net/th/id/OIP.rcKRRDLHGEu5lWcn6vbKcAHaHa?rs=1&pid=ImgDetMain'
+
+    def get_social_links(self):
+        """Get all social media links as a dictionary"""
+        return {
+            'facebook': self.facebook_link,
+            'instagram': self.instagram_link,
+            'twitter': self.twitter_link,
+            'linkedin': self.linkedin_link,
+            'tiktok': self.tiktok_link,
+        }
+
+    def has_social_links(self):
+        """Check if any social media links are configured"""
+        return any(self.get_social_links().values())
+
+    @classmethod
+    def get_instance(cls):
+        """Get or create the singleton instance"""
+        instance, created = cls.objects.get_or_create(pk=1)
+        return instance
+
+    class Meta:
+        verbose_name = "Email Configuration"
+        verbose_name_plural = "Email Configuration"
