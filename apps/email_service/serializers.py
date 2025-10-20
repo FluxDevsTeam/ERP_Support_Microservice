@@ -21,21 +21,14 @@ class EmailLogSerializer(serializers.ModelSerializer):
 
 class SendEmailSerializer(serializers.Serializer):
     
-    EMAIL_TYPES = [
-        ('otp', 'One-Time Password'),
-        ('confirmation', 'Confirmation Email'),
-        ('reset_link', 'Password Reset Link'),
-        ('general', 'General Notification'),
-    ]
-    
     user_email = serializers.EmailField(required=True)
-    email_type = serializers.ChoiceField(choices=EMAIL_TYPES, required=False, default='general')
-    subject = serializers.CharField(max_length=255, required=False, default='Notification')
-    action = serializers.CharField(max_length=100, required=False, default='notification')
-    message = serializers.CharField(required=False, default='You have a new notification.')
-    otp = serializers.CharField(max_length=10, required=False, allow_null=True, allow_blank=True)
-    link = serializers.URLField(required=False, allow_null=True, allow_blank=True)
-    link_text = serializers.CharField(max_length=100, required=False, allow_null=True, allow_blank=True)
+    email_type = serializers.CharField(max_length=50, required=False, allow_blank=True, allow_null=True)
+    subject = serializers.CharField(max_length=255, required=False, allow_blank=True, allow_null=True)
+    action = serializers.CharField(max_length=100, required=False, allow_blank=True, allow_null=True)
+    message = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    otp = serializers.CharField(max_length=10, required=False, allow_blank=True, allow_null=True)
+    link = serializers.URLField(required=False, allow_blank=True, allow_null=True)
+    link_text = serializers.CharField(max_length=100, required=False, allow_blank=True, allow_null=True)
     
     def validate_user_email(self, value):
         """Validate email format"""
@@ -44,63 +37,22 @@ class SendEmailSerializer(serializers.Serializer):
         return value.lower().strip()
     
     def validate(self, data):
-        """Cross-field validation - only validate if fields are provided"""
-        email_type = data.get('email_type', 'general')
-        
-        # Only validate OTP requirement if email_type is explicitly set to 'otp'
-        if email_type == 'otp':
-            if 'otp' in data and not data.get('otp'):
-                raise serializers.ValidationError({
-                    'otp': 'OTP is required for otp email type'
-                })
-            elif 'otp' not in data:
-                # If email_type is otp but otp field not provided, don't require it
-                # The template will just skip OTP section
-                pass
-        
-        # Only validate link requirement if email_type is explicitly set to 'reset_link'
-        if email_type == 'reset_link':
-            if 'link' in data and not data.get('link'):
-                raise serializers.ValidationError({
-                    'link': 'Link is required for reset_link email type'
-                })
-            elif 'link' not in data:
-                # If email_type is reset_link but link not provided, don't require it
-                # The template will just skip link section
-                pass
-            
-            # Set default link_text only if link is provided
-            if data.get('link') and not data.get('link_text'):
-                data['link_text'] = 'Reset Password'
-        
-        # Set defaults for empty optional fields
-        if not data.get('subject'):
-            data['subject'] = 'Notification'
-        
-        if not data.get('action'):
-            data['action'] = 'notification'
-            
-        if not data.get('message'):
-            data['message'] = 'You have a new notification.'
+        """Minimal validation - just ensure data consistency"""
+        # Set default link_text if link is provided but link_text is empty
+        if data.get('link') and not data.get('link_text'):
+            data['link_text'] = 'Click Here'
         
         return data
     
     def to_internal_value(self, data):
-        """Handle partial data and set defaults"""
+        """Handle partial data - no forced defaults"""
         # Call parent method first
         validated_data = super().to_internal_value(data)
         
-        # Ensure we have default values for optional fields
-        defaults = {
-            'email_type': 'general',
-            'subject': 'Notification',
-            'action': 'notification', 
-            'message': 'You have a new notification.'
-        }
-        
-        for field, default_value in defaults.items():
-            if field not in validated_data or validated_data[field] is None:
-                validated_data[field] = default_value
+        # Only clean up empty strings to None for consistency
+        for field in ['email_type', 'subject', 'action', 'message', 'otp', 'link', 'link_text']:
+            if field in validated_data and validated_data[field] == '':
+                validated_data[field] = None
         
         return validated_data
 
