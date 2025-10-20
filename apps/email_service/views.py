@@ -5,7 +5,7 @@ from drf_yasg.utils import swagger_auto_schema
 from django.db.models import Count, Q
 from django.utils import timezone
 
-from .tasks import send_generic_email_task, is_celery_healthy
+from .tasks import send_generic_email_task, is_celery_healthy, send_direct_email
 from .permissions import IsSuperuser, AllowAnySendEmail
 from .models import EmailLog, EmailConfiguration
 from .serializers import (
@@ -15,7 +15,8 @@ from .serializers import (
     EmailTypeStatsSerializer,
     EmailConfigurationSerializer
 )
-from .utils import swagger_helper 
+from .utils import swagger_helper, send_generic_email
+from django.utils import timezone 
 
 
 class EmailSendViewSet(viewsets.ViewSet):
@@ -42,10 +43,10 @@ class EmailSendViewSet(viewsets.ViewSet):
             
             email_log = EmailLog.objects.create(
                 email=validated_data['user_email'],
-                email_type=validated_data.get('email_type', 'general'),
-                subject=validated_data.get('subject', 'Notification'),
-                action=validated_data.get('action', 'notification'),
-                message=validated_data.get('message', 'You have a new notification.'),
+                email_type=validated_data.get('email_type'),
+                subject=validated_data.get('subject'),
+                action=validated_data.get('action'),
+                message=validated_data.get('message'),
                 otp=validated_data.get('otp'),
                 link=validated_data.get('link'),
                 link_text=validated_data.get('link_text'),
@@ -53,7 +54,7 @@ class EmailSendViewSet(viewsets.ViewSet):
             )
 
             if is_celery_healthy():
-                # Pass all validated data to the task
+                # Use Celery for asynchronous processing
                 task_kwargs = {
                     'user_email': validated_data['user_email'],
                     'email_type': validated_data.get('email_type'),
@@ -72,18 +73,55 @@ class EmailSendViewSet(viewsets.ViewSet):
                         task_kwargs[key] = value
                 
                 send_generic_email_task.apply_async(kwargs=task_kwargs)
+                
+                return Response({
+                    'status': 'queued', 
+                    'email_type': validated_data.get('email_type'), 
+                    'email': validated_data['user_email'],
+                    'email_log_id': email_log.id,
+                    'auth_method': auth_method,
+                    'processing_method': 'celery'
+                }, status=status.HTTP_200_OK)
             else:
-                email_log.status = 'pending'
-                email_log.error = 'Celery unavailable, email queued for later processing'
-                email_log.save()
-
-            return Response({
-                'status': 'queued', 
-                'email_type': validated_data.get('email_type', 'general'), 
-                'email': validated_data['user_email'],
-                'email_log_id': email_log.id,
-                'auth_method': auth_method
-            }, status=status.HTTP_200_OK)
+                # Send email directly when Celery is unavailable
+                # Prepare additional fields from the request
+                additional_fields = {k: v for k, v in request.data.items() 
+                                   if k not in ['user_email', 'email_type', 'subject', 'action', 'message', 'otp', 'link', 'link_text']}
+                
+                # Call the direct email sending function
+                result = send_direct_email(
+                    user_email=validated_data['user_email'],
+                    email_type=validated_data.get('email_type'),
+                    subject=validated_data.get('subject'),
+                    action=validated_data.get('action'),
+                    message=validated_data.get('message'),
+                    otp=validated_data.get('otp'),
+                    link=validated_data.get('link'),
+                    link_text=validated_data.get('link_text'),
+                    email_log_id=email_log.id,
+                    **additional_fields
+                )
+                
+                # Return appropriate response based on result
+                if result['status'] == 'success':
+                    return Response({
+                        'status': 'sent', 
+                        'email_type': validated_data.get('email_type'), 
+                        'email': validated_data['user_email'],
+                        'email_log_id': email_log.id,
+                        'auth_method': auth_method,
+                        'processing_method': result['processing_method']
+                    }, status=status.HTTP_200_OK)
+                else:
+                    return Response({
+                        'status': 'failed', 
+                        'email_type': validated_data.get('email_type'), 
+                        'email': validated_data['user_email'],
+                        'email_log_id': email_log.id,
+                        'auth_method': auth_method,
+                        'processing_method': result['processing_method'],
+                        'error': result.get('error', 'Direct email sending failed')
+                    }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             
         except Exception as e:
             return Response({
