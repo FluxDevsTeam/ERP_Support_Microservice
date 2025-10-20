@@ -28,7 +28,7 @@
           <table class="email-wrapper" cellpadding="0" cellspacing="0" role="presentation">
             <tr>
               <td class="header">
-                <img src="{{ brand_logo|default:'https://tse4.mm.bing.net/th/id/OIP.rcKRRDLHGEu5lWcn6vbKcAHaHa?rs=1&pid=ImgDetMain' }}" alt="{{ brand_name|default:'KidsDesignCompany' }}">
+                {% comment %} <img src="{{ brand_logo|default:'https://tse4.mm.bing.net/th/id/OIP.rcKRRDLHGEu5lWcn6vbKcAHaHa?rs=1&pid=ImgDetMain' }}" alt="{{ brand_name|default:'KidsDesignCompany' }}"> {% endcomment %}
                 <h1>{{ subject }}</h1>
                 {% if action and action != 'notification' %}
                 <p>{{ action|title }}</p>
