@@ -37,16 +37,10 @@ def send_generic_email(user_email, email_type=None, subject=None, action=None, m
 
         user_email = user_email.strip().lower()
         
-        # Set defaults for optional fields
-        email_type = email_type or 'general'
-        subject = subject or 'Notification'
-        action = action or 'notification'
-        message = message or 'You have a new notification.'
-        
-        # Clean and sanitize inputs
-        subject = subject.strip()
-        action = action.strip()
-        message = message.strip()
+        # Clean and sanitize inputs - only if provided
+        subject = subject.strip() if subject else None
+        action = action.strip() if action else None
+        message = message.strip() if message else None
         otp = otp.strip() if otp else None
         link = link.strip() if link else None
         link_text = link_text.strip() if link_text else None
@@ -55,7 +49,7 @@ def send_generic_email(user_email, email_type=None, subject=None, action=None, m
 
         # Build dynamic context with all available data
         context = {
-            'subject': subject,
+            'subject': subject or 'Notification',
             'action': action,
             'message': message,
             'otp': otp,
@@ -111,7 +105,7 @@ def send_generic_email(user_email, email_type=None, subject=None, action=None, m
 
         # Send email
         send_mail(
-            subject=subject,
+            subject=subject or 'Notification',
             message=plain_message,
             from_email=from_email,
             recipient_list=[user_email],
