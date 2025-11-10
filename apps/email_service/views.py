@@ -1,8 +1,9 @@
-from rest_framework import viewsets, status
+from rest_framework import viewsets, status, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from drf_yasg.utils import swagger_auto_schema
 from django.db.models import Count, Q
+from django_filters.rest_framework import DjangoFilterBackend
 from django.utils import timezone
 
 from apps.email_service.pagination import CustomPagination
@@ -137,6 +138,11 @@ class EmailAdminViewSet(viewsets.ModelViewSet):
     permission_classes = [IsSuperuser]
     queryset = EmailLog.objects.all()
     pagination_class = CustomPagination
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['email', 'email_type', 'status']
+    search_fields = ['email', 'subject', 'message', 'email_type', 'action']
+    ordering_fields = ['created_at', 'sent_at', 'status', 'email_type']
+    ordering = ['-created_at']
 
     def get_serializer_class(self):
         if self.action == 'list':
