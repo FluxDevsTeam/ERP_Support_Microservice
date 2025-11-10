@@ -20,7 +20,7 @@ class EmailLog(models.Model):
     subject = models.CharField(max_length=255)
     action = models.CharField(max_length=100)
     message = models.TextField()
-    otp = models.CharField(maxlength=10, null=True, blank=True)
+    otp = models.CharField(max_length=10, null=True, blank=True)
     link = models.URLField(null=True, blank=True)
     link_text = models.CharField(max_length=100, null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_QUEUED)
