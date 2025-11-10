@@ -156,7 +156,7 @@ class BlogPostViewSet(viewsets.ModelViewSet):
                 )
         
         comments = post.comments.all()
-        serializer = CommentSerializer(comments, many=True, context=self.context)
+        serializer = CommentSerializer(comments, many=True, context={'request': request})
         return Response(serializer.data)
 
 
