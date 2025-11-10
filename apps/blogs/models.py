@@ -26,6 +26,9 @@ class BlogPost(models.Model):
     author_name = models.CharField(max_length=255, null=True, blank=True, help_text="Author display name (first_name + last_name)")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
     featured_image = models.ImageField(upload_to='blog_images/', blank=True, null=True)
+    image_1 = models.ImageField(upload_to='blog_images/', blank=True, null=True)
+    image_2 = models.ImageField(upload_to='blog_images/', blank=True, null=True)
+    image_3 = models.ImageField(upload_to='blog_images/', blank=True, null=True)
     tags = models.CharField(max_length=255, blank=True, help_text="Comma-separated tags")
     
     # SEO and social media
