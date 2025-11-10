@@ -224,6 +224,79 @@ class EmailAdminViewSet(viewsets.ViewSet):
         serializer = EmailTypeStatsSerializer(results, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+    @swagger_helper("Email Admin", "EmailRetry")
+    @action(detail=True, methods=['post'], url_path='retry')
+    def retry_email(self, request, pk=None):
+        """Retry sending a failed email log (superadmin only)."""
+        try:
+            email_log = EmailLog.objects.get(pk=pk)
+        except EmailLog.DoesNotExist:
+            return Response({
+                'error': 'Email log not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        if email_log.status not in ['failed', 'pending', 'queued']:
+            return Response({
+                'error': 'Only failed or pending emails can be retried'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        payload = {
+            'user_email': email_log.email,
+            'email_type': email_log.email_type,
+            'subject': email_log.subject,
+            'action': email_log.action,
+            'message': email_log.message,
+            'otp': email_log.otp,
+            'link': email_log.link,
+            'link_text': email_log.link_text,
+            'email_log_id': email_log.id,
+        }
+
+        try:
+            if is_celery_healthy():
+                # Queue retry via Celery
+                send_generic_email_task.apply_async(kwargs=payload)
+                email_log.status = 'queued'
+                email_log.save(update_fields=['status'])
+                return Response({
+                    'status': 'queued',
+                    'email_log_id': email_log.id,
+                    'email': email_log.email,
+                    'message': 'Retry queued successfully',
+                    'processing_method': 'celery'
+                }, status=status.HTTP_200_OK)
+            else:
+                # Fallback: direct send
+                result = send_direct_email(**payload)
+                if result.get('status') == 'success':
+                    email_log.status = 'success'
+                    email_log.save(update_fields=['status'])
+                    return Response({
+                        'status': 'sent',
+                        'email_log_id': email_log.id,
+                        'email': email_log.email,
+                        'message': 'Retry sent successfully',
+                        'processing_method': result.get('processing_method', 'direct')
+                    }, status=status.HTTP_200_OK)
+                else:
+                    email_log.status = 'failed'
+                    email_log.save(update_fields=['status'])
+                    return Response({
+                        'status': 'failed',
+                        'email_log_id': email_log.id,
+                        'email': email_log.email,
+                        'error': result.get('error', 'Retry failed')
+                    }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except Exception as e:
+            email_log.status = 'failed'
+            email_log.save(update_fields=['status'])
+            return Response({
+                'status': 'failed',
+                'email_log_id': email_log.id,
+                'email': email_log.email,
+                'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 class EmailConfigurationViewSet(viewsets.ViewSet):
     """ViewSet for email configuration, restricted to superusers."""
