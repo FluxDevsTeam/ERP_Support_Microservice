@@ -283,7 +283,7 @@ class EmailConfigurationViewSet(viewsets.ViewSet):
         return Response(serializer.data, status=status.HTTP_200_OK)
     
     @swagger_helper("Email Configuration", "EmailConfiguration")
-    def update(self, request, pk=None):
+    def partial_update(self, request, pk=None):
         config = EmailConfiguration.get_instance()
         serializer = EmailConfigurationSerializer(config, data=request.data, partial=True)
         

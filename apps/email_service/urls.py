@@ -13,6 +13,6 @@ urlpatterns = [
     path('logs/<int:pk>/retry/', EmailAdminViewSet.as_view({'post': 'retry_email'}), name='email_retry'),
     
     # Email Configuration URLs
-    path('config/', EmailConfigurationViewSet.as_view({'get': 'list', 'put': 'update'}), name='email_config'),
+    path('config/', EmailConfigurationViewSet.as_view({'get': 'list', 'patch': 'partial_update'}), name='email_config'),
     path('config/test-smtp/', EmailConfigurationViewSet.as_view({'post': 'test_smtp_connection'}), name='test_smtp_connection'),
 ]
