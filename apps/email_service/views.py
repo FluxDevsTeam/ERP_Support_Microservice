@@ -279,17 +279,19 @@ class EmailConfigurationViewSet(viewsets.ViewSet):
     @swagger_helper("Email Configuration", "EmailConfiguration")
     def list(self, request):
         config = EmailConfiguration.get_instance()
-        serializer = EmailConfigurationSerializer(config)
+        serializer = EmailConfigurationSerializer(config, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
     
     @swagger_helper("Email Configuration", "EmailConfiguration")
     def partial_update(self, request, pk=None):
         config = EmailConfiguration.get_instance()
-        serializer = EmailConfigurationSerializer(config, data=request.data, partial=True)
+        serializer = EmailConfigurationSerializer(config, data=request.data, partial=True, context={'request': request})
         
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data, status=status.HTTP_200_OK)
+            # Re-serialize to ensure brand_logo uses absolute URL
+            response_serializer = EmailConfigurationSerializer(config, context={'request': request})
+            return Response(response_serializer.data, status=status.HTTP_200_OK)
         
         return Response({
             'error': 'Validation failed',
