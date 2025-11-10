@@ -46,7 +46,7 @@ class BlogPostAdmin(admin.ModelAdmin):
     def view_on_site_link(self, obj):
         """Add a link to view the post on the public site"""
         if obj.pk and obj.status == 'published':
-            url = reverse('blogs:public-post-detail', kwargs={'pk': obj.pk})
+            url = reverse('blogs:public_blog_posts_detail', kwargs={'pk': obj.pk})
             return format_html(
                 '<a href="{}" target="_blank">View on Site</a>',
                 url

@@ -101,7 +101,7 @@ class BlogPostAPITestCase(APITestCase):
         
         # Update the post
         post_id = response.data['id']
-        update_url = reverse('blogs:blogpost-detail', kwargs={'pk': post_id})
+        update_url = reverse('blogs:blog_posts_update', kwargs={'pk': post_id})
         update_data = {'title': 'Updated Title', 'status': 'published'}
         
         response = self.client.patch(update_url, update_data, format='json')
@@ -224,7 +224,7 @@ class CommentAPITestCase(APITestCase):
         
         # Test public access to comments
         self.client.credentials()  # Clear authentication for public access
-        url = reverse('blogs:public-post-detail', kwargs={'pk': self.blog_post.id})
+        url = reverse('blogs:public_blog_posts_detail', kwargs={'pk': self.blog_post.id})
         response = self.client.get(url)
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -298,7 +298,7 @@ class PublicBlogAPITestCase(APITestCase):
     
     def test_public_blog_detail(self):
         """Test public access to blog post detail"""
-        url = reverse('blogs:public-post-detail', kwargs={'pk': self.published_post1.id})
+        url = reverse('blogs:public_blog_posts_detail', kwargs={'pk': self.published_post1.id})
         response = self.client.get(url)
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -308,7 +308,7 @@ class PublicBlogAPITestCase(APITestCase):
     
     def test_draft_post_not_accessible_to_public(self):
         """Test that draft posts are not accessible to public"""
-        url = reverse('blogs:public-post-detail', kwargs={'pk': self.draft_post.id})
+        url = reverse('blogs:public_blog_posts_detail', kwargs={'pk': self.draft_post.id})
         response = self.client.get(url)
         
         # This should return 404 as the post is not published
