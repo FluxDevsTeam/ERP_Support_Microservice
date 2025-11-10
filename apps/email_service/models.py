@@ -10,9 +10,9 @@ class EmailLog(models.Model):
     STATUS_FAILED = 'failed'
 
     STATUS_CHOICES = [
-        (STATUS_QUEUED, 'Queued'),
-        (STATUS_SENT, 'Sent'),
-        (STATUS_FAILED, 'Failed'),
+        (STATUS_QUEUED, 'queued'),
+        (STATUS_SENT, 'sent'),
+        (STATUS_FAILED, 'failed'),
     ]
 
     email = models.EmailField()

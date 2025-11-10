@@ -209,9 +209,9 @@ class EmailAdminViewSet(viewsets.ModelViewSet):
                 'error': 'Email log not found'
             }, status=status.HTTP_404_NOT_FOUND)
 
-        if email_log.status not in ['failed', 'pending', 'queued']:
+        if email_log.status not in [EmailLog.STATUS_FAILED, EmailLog.STATUS_QUEUED]:
             return Response({
-                'error': 'Only failed or pending emails can be retried'
+                'error': 'Only failed or queued emails can be retried'
             }, status=status.HTTP_400_BAD_REQUEST)
 
         payload = {
