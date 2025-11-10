@@ -65,8 +65,8 @@ class EmailStatsSerializer(serializers.Serializer):
     failed_emails = serializers.IntegerField(read_only=True)
     pending_emails = serializers.IntegerField(read_only=True)
     success_rate = serializers.FloatField(read_only=True)
-    
-    
+
+
 class EmailTypeStatsSerializer(serializers.Serializer):
     """Serializer for email type statistics"""
     

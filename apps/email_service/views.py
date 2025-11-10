@@ -5,15 +5,17 @@ from drf_yasg.utils import swagger_auto_schema
 from django.db.models import Count, Q
 from django.utils import timezone
 
+from apps.email_service.pagination import CustomPagination
+
 from .tasks import send_generic_email_task, is_celery_healthy, send_direct_email
 from .permissions import IsSuperuser, AllowAnySendEmail
 from .models import EmailLog, EmailConfiguration
 from .serializers import (
-    EmailLogSerializer, 
-    SendEmailSerializer, 
+    EmailLogSerializer,
+    SendEmailSerializer,
     EmailStatsSerializer,
     EmailTypeStatsSerializer,
-    EmailConfigurationSerializer
+    EmailConfigurationSerializer,
 )
 from .utils import swagger_helper, send_generic_email
 from django.utils import timezone 
@@ -130,59 +132,25 @@ class EmailSendViewSet(viewsets.ViewSet):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-class EmailAdminViewSet(viewsets.ViewSet):
+class EmailAdminViewSet(viewsets.ModelViewSet):
     """ViewSet for administrative email actions, restricted to superusers."""
     permission_classes = [IsSuperuser]
+    queryset = EmailLog.objects.all()
+    pagination_class = CustomPagination
+
+    def get_serializer_class(self):
+        if self.action == 'list':
+            return EmailLogSerializer
+        if self.action == 'email_stats':
+            return EmailStatsSerializer
+        if self.action == 'email_type_stats':
+            return EmailTypeStatsSerializer
+        return EmailLogSerializer
 
     @swagger_helper("Email Admin", "EmailLog")
-    @action(detail=False, methods=['get'], url_path='logs')
-    def list_logs(self, request):
-        queryset = EmailLog.objects.all()
-        
-        email_type = request.query_params.get('email_type')
-        if email_type:
-            queryset = queryset.filter(email_type=email_type)
-        
-        status_filter = request.query_params.get('status')
-        if status_filter:
-            queryset = queryset.filter(status=status_filter)
-        
-        email = request.query_params.get('email')
-        if email:
-            queryset = queryset.filter(email__icontains=email)
-        
-        start_date = request.query_params.get('start_date')
-        end_date = request.query_params.get('end_date')
-        if start_date:
-            try:
-                start_date = timezone.datetime.fromisoformat(start_date)
-                queryset = queryset.filter(created_at__gte=start_date)
-            except ValueError:
-                pass
-        if end_date:
-            try:
-                end_date = timezone.datetime.fromisoformat(end_date)
-                queryset = queryset.filter(created_at__lte=end_date)
-            except ValueError:
-                pass
-        
-        limit = request.query_params.get('limit', 50)
-        try:
-            limit = int(limit)
-            if limit > 200:
-                limit = 200
-            if limit < 1:
-                limit = 1
-        except ValueError:
-            limit = 50
-        
-        logs = queryset[:limit]
-        serializer = EmailLogSerializer(logs, many=True)
-        return Response({
-            'count': len(serializer.data),
-            'results': serializer.data
-        }, status=status.HTTP_200_OK)
-    
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
     @swagger_helper("Email Admin", "EmailStats")
     @action(detail=False, methods=['get'], url_path='stats')
     def email_stats(self, request):
