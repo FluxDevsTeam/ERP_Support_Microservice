@@ -18,7 +18,6 @@ class BlogPost(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     
     title = models.CharField(max_length=255, unique=True)
-    slug = models.SlugField(max_length=255, unique=True, blank=True)
     content = models.TextField()
     excerpt = models.TextField(max_length=500, blank=True, help_text="Brief summary of the blog post")
     # Author information stored directly (like billing service pattern)
@@ -47,7 +46,6 @@ class BlogPost(models.Model):
         indexes = [
             models.Index(fields=['id']),
             models.Index(fields=['status', 'published_at']),
-            models.Index(fields=['slug']),
             models.Index(fields=['author_user_id']),
         ]
     
@@ -55,9 +53,6 @@ class BlogPost(models.Model):
         return self.title
     
     def save(self, *args, **kwargs):
-        if not self.slug:
-            self.slug = slugify(self.title)
-            
         # Auto-generate excerpt from content if not provided
         if not self.excerpt and self.content:
             self.excerpt = self.content[:200] + "..." if len(self.content) > 200 else self.content
@@ -78,10 +73,6 @@ class BlogPost(models.Model):
     def is_published(self):
         return self.status == 'published' and self.published_at is not None
     
-    def get_absolute_url(self):
-        from django.urls import reverse
-        return reverse('blogs:blog_posts_detail', kwargs={'pk': self.id})
-
 
 class Comment(models.Model):
     """

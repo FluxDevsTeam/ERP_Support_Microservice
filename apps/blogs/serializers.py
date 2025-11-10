@@ -82,22 +82,15 @@ class BlogPostListSerializer(serializers.ModelSerializer):
     """Serializer for listing blog posts"""
     author = AuthorInfoSerializer(read_only=True)
     comment_count = serializers.ReadOnlyField()
-    url = serializers.SerializerMethodField()
     
     class Meta:
         model = BlogPost
         fields = [
-            'id', 'title', 'slug', 'excerpt', 'author', 'status', 
+            'id', 'title', 'excerpt', 'author', 'status', 
             'featured_image', 'image_1', 'image_2', 'image_3', 'tags', 'created_at', 'updated_at', 
-            'published_at', 'comment_count', 'url'
+            'published_at', 'comment_count'
         ]
         read_only_fields = fields
-    
-    def get_url(self, obj):
-        request = self.context.get('request')
-        if request:
-            return request.build_absolute_uri(obj.get_absolute_url())
-        return None
 
 
 class BlogPostDetailSerializer(serializers.ModelSerializer):
@@ -109,7 +102,7 @@ class BlogPostDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = BlogPost
         fields = [
-            'id', 'title', 'slug', 'content', 'excerpt', 'author', 
+            'id', 'title', 'content', 'excerpt', 'author', 
             'status', 'featured_image', 'image_1', 'image_2', 'image_3', 'tags', 'meta_title', 
             'meta_description', 'created_at', 'updated_at', 
             'published_at', 'comment_count', 'is_published', 'comments'
