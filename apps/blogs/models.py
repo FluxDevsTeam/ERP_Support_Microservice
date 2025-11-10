@@ -80,7 +80,7 @@ class BlogPost(models.Model):
     
     def get_absolute_url(self):
         from django.urls import reverse
-        return reverse('blogs:post-detail', kwargs={'slug': self.slug})
+        return reverse('blogs:blog_posts_detail', kwargs={'pk': self.id})
 
 
 class Comment(models.Model):
