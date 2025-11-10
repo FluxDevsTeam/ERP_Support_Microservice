@@ -1,48 +1,31 @@
-from django.urls import path, include
-from rest_framework.routers import DefaultRouter
-from .views import BlogPostViewSet, CommentViewSet, PublicBlogPostViewSet
+from django.urls import path
+from .views import (
+    BlogPostViewSet, 
+    CommentViewSet, 
+    PublicBlogPostViewSet
+)
 
 app_name = 'blogs'
 
-# Create router and register viewsets
-router = DefaultRouter()
-router.register(r'posts', BlogPostViewSet, basename='blogpost')
-router.register(r'comments', CommentViewSet, basename='comment')
-router.register(r'public', PublicBlogPostViewSet, basename='public')
-
 urlpatterns = [
-    # API routes
-    path('api/', include(router.urls)),
+    # Blog post management endpoints (superadmin only for write operations)
+    path('posts/', BlogPostViewSet.as_view({'get': 'list'}), name='blog_posts_list'),
+    path('posts/create/', BlogPostViewSet.as_view({'post': 'create'}), name='blog_posts_create'),
+    path('posts/<uuid:pk>/', BlogPostViewSet.as_view({'get': 'retrieve'}), name='blog_posts_detail'),
+    path('posts/<uuid:pk>/update/', BlogPostViewSet.as_view({'patch': 'partial_update'}), name='blog_posts_update'),
+    path('posts/<uuid:pk>/delete/', BlogPostViewSet.as_view({'delete': 'destroy'}), name='blog_posts_delete'),
+    path('posts/<uuid:pk>/publish/', BlogPostViewSet.as_view({'post': 'publish'}), name='blog_posts_publish'),
+    path('posts/<uuid:pk>/unpublish/', BlogPostViewSet.as_view({'post': 'unpublish'}), name='blog_posts_unpublish'),
+    path('posts/<uuid:pk>/comments/', BlogPostViewSet.as_view({'get': 'comments'}), name='blog_posts_comments'),
     
-    # Additional nested routes for comments on specific blog posts
-    path('api/posts/<int:blog_post_id>/comments/', 
-         CommentViewSet.as_view({'get': 'list', 'post': 'create'}), 
-         name='post-comments'),
+    # Comment management endpoints
+    path('comments/', CommentViewSet.as_view({'get': 'list'}), name='comments_list'),
+    path('comments/<uuid:pk>/', CommentViewSet.as_view({'get': 'retrieve'}), name='comments_detail'),
+    path('comments/create/', CommentViewSet.as_view({'post': 'create'}), name='comments_create'),
+    path('comments/<uuid:pk>/update/', CommentViewSet.as_view({'patch': 'partial_update'}), name='comments_update'),
+    path('comments/<uuid:pk>/delete/', CommentViewSet.as_view({'delete': 'destroy'}), name='comments_delete'),
+    
+    # Public blog endpoints (read-only for published posts)
+    path('public/posts/', PublicBlogPostViewSet.as_view({'get': 'list'}), name='public_blog_posts_list'),
+    path('public/posts/<uuid:pk>/', PublicBlogPostViewSet.as_view({'get': 'retrieve'}), name='public_blog_posts_detail'),
 ]
-
-# Alternative URL patterns for better organization
-# Uncomment and use these if you prefer explicit URL patterns over router patterns
-
-# from .views import (
-#     BlogPostListView, 
-#     BlogPostDetailView, 
-#     BlogPostCreateView,
-#     BlogPostUpdateView,
-#     BlogPostDeleteView,
-#     CommentCreateView,
-# )
-
-# urlpatterns = [
-#     # Blog post URLs
-#     path('', BlogPostListView.as_view(), name='post-list'),
-#     path('create/', BlogPostCreateView.as_view(), name='post-create'),
-#     path('<slug:slug>/', BlogPostDetailView.as_view(), name='post-detail'),
-#     path('<slug:slug>/edit/', BlogPostUpdateView.as_view(), name='post-edit'),
-#     path('<slug:slug>/delete/', BlogPostDeleteView.as_view(), name='post-delete'),
-#     
-#     # Comment URLs
-#     path('<slug:slug>/comments/', CommentCreateView.as_view(), name='post-comments'),
-#     
-#     # Admin URLs (if using class-based views)
-#     path('admin/', include(router.urls)),
-# ]

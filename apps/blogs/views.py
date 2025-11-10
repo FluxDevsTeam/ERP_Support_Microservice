@@ -7,6 +7,7 @@ from rest_framework.filters import SearchFilter, OrderingFilter
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from drf_yasg.utils import swagger_auto_schema
 
 from .models import BlogPost, Comment
 from .serializers import (
@@ -22,7 +23,8 @@ from .permissions import (
     IsAuthenticatedForComments,
     CanReadPublishedPosts
 )
-from .utils import get_request_role, get_request_tenant
+from .utils import get_request_role, get_request_tenant, swagger_helper
+from .pagination import BlogPagination
 import logging
 
 logger = logging.getLogger('blogs')
@@ -42,6 +44,7 @@ class BlogPostViewSet(viewsets.ModelViewSet):
     search_fields = ['title', 'content', 'excerpt', 'tags', 'author_name']
     ordering_fields = ['created_at', 'updated_at', 'title', 'published_at']
     ordering = ['-created_at']
+    pagination_class = BlogPagination
     
     def get_queryset(self):
         """
@@ -77,7 +80,28 @@ class BlogPostViewSet(viewsets.ModelViewSet):
         else:
             return [IsSuperuserOrReadOnly()]
     
-    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    @swagger_helper("Blog Posts", "BlogPost")
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+    
+    @swagger_helper("Blog Posts", "BlogPost")
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, *args, **kwargs)
+    
+    @swagger_helper("Blog Posts", "BlogPost")
+    def create(self, request, *args, **kwargs):
+        return super().create(request, *args, **kwargs)
+    
+    @swagger_helper("Blog Posts", "BlogPost")
+    def partial_update(self, request, *args, **kwargs):
+        return super().partial_update(request, *args, **kwargs)
+    
+    @swagger_helper("Blog Posts", "BlogPost")
+    def destroy(self, request, *args, **kwargs):
+        return super().destroy(request, *args, **kwargs)
+    
+    @swagger_helper("Blog Posts", "BlogPost")
+    @action(detail=True, methods=['post'], permission_classes=[IsSuperuser])
     def publish(self, request, pk=None):
         """
         Action to publish a blog post (superuser only).
@@ -96,7 +120,8 @@ class BlogPostViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(post)
         return Response(serializer.data)
     
-    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    @swagger_helper("Blog Posts", "BlogPost")
+    @action(detail=True, methods=['post'], permission_classes=[IsSuperuser])
     def unpublish(self, request, pk=None):
         """
         Action to unpublish a blog post (superuser only).
@@ -114,10 +139,11 @@ class BlogPostViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(post)
         return Response(serializer.data)
     
+    @swagger_helper("Blog Posts", "BlogPost")
     @action(detail=True, methods=['get'], permission_classes=[AllowAny])
     def comments(self, request, pk=None):
         """
-        Get all approved comments for a blog post.
+        Get all comments for a blog post.
         """
         post = self.get_object()
         
@@ -129,7 +155,7 @@ class BlogPostViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_404_NOT_FOUND
                 )
         
-        comments = post.comments.filter(is_approved=True)
+        comments = post.comments.all()
         serializer = CommentSerializer(comments, many=True, context=self.context)
         return Response(serializer.data)
 
@@ -141,13 +167,13 @@ class CommentViewSet(viewsets.ModelViewSet):
     - Authenticated users: Create comments
     - Comment authors: Edit their own comments
     - Superusers: Full CRUD access
-    - Public: Read access to approved comments only
+    - Public: Read access to all comments
     """
     queryset = Comment.objects.all()
     serializer_class = CommentSerializer
     permission_classes = [IsCommenterOrSuperuser]
     filter_backends = [DjangoFilterBackend, OrderingFilter]
-    filterset_fields = ['blog_post', 'is_approved']
+    filterset_fields = ['blog_post']
     ordering = ['created_at']
     
     def get_queryset(self):
@@ -159,8 +185,8 @@ class CommentViewSet(viewsets.ModelViewSet):
         if user.is_authenticated and user.is_superuser:
             return Comment.objects.all()
         
-        # For non-superusers, only show approved comments
-        return Comment.objects.filter(is_approved=True)
+        # For non-superusers, show all comments (no approval needed)
+        return Comment.objects.all()
     
     def get_permissions(self):
         """
@@ -186,41 +212,25 @@ class CommentViewSet(viewsets.ModelViewSet):
         
         return context
     
-    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
-    def approve(self, request, pk=None):
-        """
-        Action to approve a comment (superuser only).
-        """
-        if not request.user.is_superuser:
-            return Response(
-                {'detail': 'Only superusers can approve comments.'},
-                status=status.HTTP_403_FORBIDDEN
-            )
-        
-        comment = self.get_object()
-        comment.is_approved = True
-        comment.save()
-        
-        serializer = self.get_serializer(comment)
-        return Response(serializer.data)
+    @swagger_helper("Comments", "Comment")
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
     
-    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
-    def reject(self, request, pk=None):
-        """
-        Action to reject a comment (superuser only).
-        """
-        if not request.user.is_superuser:
-            return Response(
-                {'detail': 'Only superusers can reject comments.'},
-                status=status.HTTP_403_FORBIDDEN
-            )
-        
-        comment = self.get_object()
-        comment.is_approved = False
-        comment.save()
-        
-        serializer = self.get_serializer(comment)
-        return Response(serializer.data)
+    @swagger_helper("Comments", "Comment")
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, *args, **kwargs)
+    
+    @swagger_helper("Comments", "Comment")
+    def create(self, request, *args, **kwargs):
+        return super().create(request, *args, **kwargs)
+    
+    @swagger_helper("Comments", "Comment")
+    def partial_update(self, request, *args, **kwargs):
+        return super().partial_update(request, *args, **kwargs)
+    
+    @swagger_helper("Comments", "Comment")
+    def destroy(self, request, *args, **kwargs):
+        return super().destroy(request, *args, **kwargs)
 
 
 class PublicBlogPostViewSet(viewsets.ReadOnlyModelViewSet):
@@ -236,6 +246,7 @@ class PublicBlogPostViewSet(viewsets.ReadOnlyModelViewSet):
     search_fields = ['title', 'content', 'excerpt', 'tags']
     ordering_fields = ['created_at', 'updated_at', 'title', 'published_at']
     ordering = ['-published_at']
+    pagination_class = BlogPagination
     
     def get_queryset(self):
         """
@@ -254,3 +265,11 @@ class PublicBlogPostViewSet(viewsets.ReadOnlyModelViewSet):
             return BlogPostListSerializer
         else:
             return BlogPostDetailSerializer
+    
+    @swagger_helper("Public Blog Posts", "BlogPost")
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+    
+    @swagger_helper("Public Blog Posts", "BlogPost")
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, *args, **kwargs)

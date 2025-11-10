@@ -1,3 +1,4 @@
+import uuid
 from django.db import models
 from django.utils.text import slugify
 from django.utils import timezone
@@ -12,6 +13,9 @@ class BlogPost(models.Model):
         ('published', 'Published'),
         ('archived', 'Archived'),
     ]
+    
+    # Use UUID as primary key
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     
     title = models.CharField(max_length=255, unique=True)
     slug = models.SlugField(max_length=255, unique=True, blank=True)
@@ -38,6 +42,7 @@ class BlogPost(models.Model):
     class Meta:
         ordering = ['-created_at']
         indexes = [
+            models.Index(fields=['id']),
             models.Index(fields=['status', 'published_at']),
             models.Index(fields=['slug']),
             models.Index(fields=['author_user_id']),
@@ -79,6 +84,9 @@ class Comment(models.Model):
     """
     Comment model for blog posts
     """
+    # Use UUID as primary key
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    
     blog_post = models.ForeignKey(BlogPost, on_delete=models.CASCADE, related_name='comments')
     # User information stored directly (like billing service pattern)
     user_user_id = models.CharField(max_length=255, help_text="User ID from identity microservice")
@@ -93,6 +101,7 @@ class Comment(models.Model):
     class Meta:
         ordering = ['created_at']
         indexes = [
+            models.Index(fields=['id']),
             models.Index(fields=['blog_post', 'is_approved']),
             models.Index(fields=['user_user_id']),
         ]
