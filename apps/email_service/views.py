@@ -161,9 +161,9 @@ class EmailAdminViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'], url_path='stats')
     def email_stats(self, request):
         total_emails = EmailLog.objects.count()
-        successful_emails = EmailLog.objects.filter(status='success').count()
-        failed_emails = EmailLog.objects.filter(status='failed').count()
-        pending_emails = EmailLog.objects.filter(status='pending').count()
+        successful_emails = EmailLog.objects.filter(status=EmailLog.STATUS_SENT).count()
+        failed_emails = EmailLog.objects.filter(status=EmailLog.STATUS_FAILED).count()
+        pending_emails = EmailLog.objects.filter(status=EmailLog.STATUS_QUEUED).count()
         
         success_rate = (successful_emails / total_emails * 100) if total_emails > 0 else 0
         
@@ -183,7 +183,7 @@ class EmailAdminViewSet(viewsets.ModelViewSet):
     def email_type_stats(self, request):
         type_stats = EmailLog.objects.values('email_type').annotate(
             count=Count('id'),
-            success_count=Count('id', filter=Q(status='success'))
+            success_count=Count('id', filter=Q(status=EmailLog.STATUS_SENT))
         ).order_by('-count')
         
         results = []

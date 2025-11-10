@@ -5,15 +5,25 @@ import os
 
 
 class EmailLog(models.Model):
+    STATUS_QUEUED = 'queued'
+    STATUS_SENT = 'sent'
+    STATUS_FAILED = 'failed'
+
+    STATUS_CHOICES = [
+        (STATUS_QUEUED, 'Queued'),
+        (STATUS_SENT, 'Sent'),
+        (STATUS_FAILED, 'Failed'),
+    ]
+
     email = models.EmailField()
     email_type = models.CharField(max_length=50)
     subject = models.CharField(max_length=255)
     action = models.CharField(max_length=100)
     message = models.TextField()
-    otp = models.CharField(max_length=10, null=True, blank=True)
+    otp = models.CharField(maxlength=10, null=True, blank=True)
     link = models.URLField(null=True, blank=True)
     link_text = models.CharField(max_length=100, null=True, blank=True)
-    status = models.CharField(max_length=20, default='queued')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_QUEUED)
     created_at = models.DateTimeField(auto_now_add=True)
     sent_at = models.DateTimeField(null=True, blank=True)
     error = models.TextField(null=True, blank=True)
