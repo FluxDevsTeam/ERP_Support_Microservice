@@ -23,6 +23,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'api',
     'apps.email_service',
+    'apps.blogs',
 ]
 
 MIDDLEWARE = [

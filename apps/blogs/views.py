@@ -1,0 +1,256 @@
+from rest_framework import viewsets, status
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.filters import SearchFilter, OrderingFilter
+from django.db.models import Q
+from django.shortcuts import get_object_or_404
+from django.utils import timezone
+
+from .models import BlogPost, Comment
+from .serializers import (
+    BlogPostListSerializer, 
+    BlogPostDetailSerializer, 
+    BlogPostCreateUpdateSerializer,
+    CommentSerializer
+)
+from .permissions import (
+    IsSuperuser,
+    IsSuperuserOrReadOnly,
+    IsCommenterOrSuperuser, 
+    IsAuthenticatedForComments,
+    CanReadPublishedPosts
+)
+from .utils import get_request_role, get_request_tenant
+import logging
+
+logger = logging.getLogger('blogs')
+
+
+class BlogPostViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for blog posts with permission-based access control.
+    
+    - Superusers: Full CRUD access
+    - Public: Read access to published posts only
+    """
+    queryset = BlogPost.objects.all()
+    permission_classes = [IsSuperuserOrReadOnly]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ['status', 'author_user_id']
+    search_fields = ['title', 'content', 'excerpt', 'tags', 'author_name']
+    ordering_fields = ['created_at', 'updated_at', 'title', 'published_at']
+    ordering = ['-created_at']
+    
+    def get_queryset(self):
+        """
+        Filter queryset based on user permissions and query parameters.
+        """
+        user = self.request.user
+        
+        # If user is superuser, show all posts
+        if user.is_authenticated and user.is_superuser:
+            return BlogPost.objects.all()
+        
+        # For non-superusers, only show published posts
+        return BlogPost.objects.filter(status='published', published_at__isnull=False)
+    
+    def get_serializer_class(self):
+        """
+        Return appropriate serializer based on action.
+        """
+        if self.action == 'list':
+            return BlogPostListSerializer
+        elif self.action in ['create', 'update', 'partial_update']:
+            return BlogPostCreateUpdateSerializer
+        else:
+            return BlogPostDetailSerializer
+    
+    def get_permissions(self):
+        """
+        Set permissions based on action.
+        """
+        if self.action in ['list', 'retrieve']:
+            # Public read access to published posts
+            return [AllowAny()]
+        else:
+            return [IsSuperuserOrReadOnly()]
+    
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def publish(self, request, pk=None):
+        """
+        Action to publish a blog post (superuser only).
+        """
+        if not request.user.is_superuser:
+            return Response(
+                {'detail': 'Only superusers can publish posts.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        post = self.get_object()
+        post.status = 'published'
+        post.published_at = timezone.now()
+        post.save()
+        
+        serializer = self.get_serializer(post)
+        return Response(serializer.data)
+    
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def unpublish(self, request, pk=None):
+        """
+        Action to unpublish a blog post (superuser only).
+        """
+        if not request.user.is_superuser:
+            return Response(
+                {'detail': 'Only superusers can unpublish posts.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        post = self.get_object()
+        post.status = 'draft'
+        post.save()
+        
+        serializer = self.get_serializer(post)
+        return Response(serializer.data)
+    
+    @action(detail=True, methods=['get'], permission_classes=[AllowAny])
+    def comments(self, request, pk=None):
+        """
+        Get all approved comments for a blog post.
+        """
+        post = self.get_object()
+        
+        # Only show published posts to public
+        if not (request.user.is_authenticated and request.user.is_superuser):
+            if post.status != 'published' or post.published_at is None:
+                return Response(
+                    {'detail': 'Post not found or not published.'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+        
+        comments = post.comments.filter(is_approved=True)
+        serializer = CommentSerializer(comments, many=True, context=self.context)
+        return Response(serializer.data)
+
+
+class CommentViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for blog comments.
+    
+    - Authenticated users: Create comments
+    - Comment authors: Edit their own comments
+    - Superusers: Full CRUD access
+    - Public: Read access to approved comments only
+    """
+    queryset = Comment.objects.all()
+    serializer_class = CommentSerializer
+    permission_classes = [IsCommenterOrSuperuser]
+    filter_backends = [DjangoFilterBackend, OrderingFilter]
+    filterset_fields = ['blog_post', 'is_approved']
+    ordering = ['created_at']
+    
+    def get_queryset(self):
+        """
+        Filter queryset based on user permissions.
+        """
+        user = self.request.user
+        
+        if user.is_authenticated and user.is_superuser:
+            return Comment.objects.all()
+        
+        # For non-superusers, only show approved comments
+        return Comment.objects.filter(is_approved=True)
+    
+    def get_permissions(self):
+        """
+        Set permissions based on action.
+        """
+        if self.action == 'create':
+            return [IsAuthenticatedForComments()]
+        elif self.action in ['update', 'partial_update', 'destroy']:
+            return [IsCommenterOrSuperuser()]
+        else:
+            return [AllowAny()]
+    
+    def get_serializer_context(self):
+        """
+        Add blog post to serializer context if provided in kwargs.
+        """
+        context = super().get_serializer_context()
+        
+        # Get blog_post from URL kwargs
+        blog_post_id = self.kwargs.get('blog_post_id')
+        if blog_post_id:
+            context['blog_post'] = get_object_or_404(BlogPost, pk=blog_post_id)
+        
+        return context
+    
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def approve(self, request, pk=None):
+        """
+        Action to approve a comment (superuser only).
+        """
+        if not request.user.is_superuser:
+            return Response(
+                {'detail': 'Only superusers can approve comments.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        comment = self.get_object()
+        comment.is_approved = True
+        comment.save()
+        
+        serializer = self.get_serializer(comment)
+        return Response(serializer.data)
+    
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def reject(self, request, pk=None):
+        """
+        Action to reject a comment (superuser only).
+        """
+        if not request.user.is_superuser:
+            return Response(
+                {'detail': 'Only superusers can reject comments.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        comment = self.get_object()
+        comment.is_approved = False
+        comment.save()
+        
+        serializer = self.get_serializer(comment)
+        return Response(serializer.data)
+
+
+class PublicBlogPostViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Public read-only access to published blog posts.
+    
+    - Anyone: Read access to published posts and their comments
+    """
+    serializer_class = BlogPostListSerializer
+    permission_classes = [AllowAny]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ['tags']
+    search_fields = ['title', 'content', 'excerpt', 'tags']
+    ordering_fields = ['created_at', 'updated_at', 'title', 'published_at']
+    ordering = ['-published_at']
+    
+    def get_queryset(self):
+        """
+        Only return published blog posts.
+        """
+        return BlogPost.objects.filter(
+            status='published',
+            published_at__isnull=False
+        )
+    
+    def get_serializer_class(self):
+        """
+        Return appropriate serializer based on action.
+        """
+        if self.action == 'list':
+            return BlogPostListSerializer
+        else:
+            return BlogPostDetailSerializer
