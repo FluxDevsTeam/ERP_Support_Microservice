@@ -78,7 +78,6 @@ class EmailTypeStatsSerializer(serializers.Serializer):
 class EmailConfigurationSerializer(serializers.ModelSerializer):
     """Serializer for EmailConfiguration model"""
 
-    # brand_logo = serializers.SerializerMethodField()
 
     class Meta:
         model = EmailConfiguration
@@ -89,15 +88,6 @@ class EmailConfigurationSerializer(serializers.ModelSerializer):
             'tiktok_link', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
-
-    # def get_brand_logo(self, obj):
-    #     request = self.context.get('request')
-    #     if obj.brand_logo:
-    #         url = obj.brand_logo.url
-    #         if request is not None and not url.startswith('http'):
-    #             return request.build_absolute_uri(url)
-    #         return url
-    #     return None
 
     def validate(self, data):
         """Custom validation"""
