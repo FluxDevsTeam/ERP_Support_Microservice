@@ -21,7 +21,7 @@ urlpatterns = [
     # Comment management endpoints
     path('comments/', CommentViewSet.as_view({'get': 'list'}), name='comments_list'),
     path('comments/<uuid:pk>/', CommentViewSet.as_view({'get': 'retrieve'}), name='comments_detail'),
-    path('comments/create/', CommentViewSet.as_view({'post': 'create'}), name='comments_create'),
+    path('comments/', CommentViewSet.as_view({'post': 'create'}), name='comments_create'),
     path('comments/<uuid:pk>/', CommentViewSet.as_view({'patch': 'partial_update'}), name='comments_update'),
     path('comments/<uuid:pk>/', CommentViewSet.as_view({'delete': 'destroy'}), name='comments_delete'),
     
