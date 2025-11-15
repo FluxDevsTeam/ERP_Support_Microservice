@@ -119,11 +119,10 @@ class IsCommenterOrSuperuser(permissions.BasePermission):
         return is_authenticated
     
     def has_object_permission(self, request, view, obj):
-        # Read access is allowed for all users to approved comments
+        # Read access is allowed for all users (no approval needed)
         if request.method in permissions.SAFE_METHODS:
-            is_approved = getattr(obj, 'is_approved', False)
-            logger.debug(f"Comment read access: approved={is_approved}")
-            return is_approved
+            logger.debug(f"Comment read access: allowed")
+            return True
         
         # Superusers can do anything
         if request.user.is_superuser:
@@ -138,9 +137,12 @@ class IsCommenterOrSuperuser(permissions.BasePermission):
             logger.debug(f"Comment owner check: user {user_id} vs object {object_user_id} = {is_owner}")
             return is_owner
         
-        # Only superusers can delete comments
+        # Users can delete their own comments, superusers can delete any
         if request.method == 'DELETE':
-            logger.debug(f"Comment delete: only superusers allowed")
-            return False
+            user_id = str(getattr(request.user, 'id', None))
+            object_user_id = getattr(obj, 'user_user_id', None)
+            is_owner = user_id == object_user_id
+            logger.debug(f"Comment delete: user {user_id} vs object {object_user_id} = {is_owner}")
+            return is_owner or request.user.is_superuser
         
         return False
