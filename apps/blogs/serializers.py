@@ -42,23 +42,23 @@ class CommentSerializer(serializers.ModelSerializer):
     """Serializer for blog comments"""
     user = UserInfoSerializer(read_only=True)
     is_reply = serializers.ReadOnlyField()
-    
+
     class Meta:
         model = Comment
         fields = [
-            'id', 'blog_post', 'user', 'content', 'is_approved', 
+            'id', 'blog_post', 'user', 'content',
             'parent', 'created_at', 'updated_at', 'is_reply'
         ]
-        read_only_fields = ['id', 'is_approved', 'user', 'created_at', 'updated_at', 'is_reply']
-    
+        read_only_fields = ['id', 'user', 'created_at', 'updated_at', 'is_reply']
+
     def create(self, validated_data):
         # Get the user from the request context (following billing service pattern)
         request = self.context.get('request')
         user = request.user
-        
+
         # Set user information directly (like billing service pattern)
         validated_data['user_user_id'] = str(user.id) if hasattr(user, 'id') else str(user.username)
-        
+
         # Try to get name from various user attributes (following billing service pattern)
         user_name = None
         if hasattr(user, 'first_name') and hasattr(user, 'last_name') and (user.first_name or user.last_name):
@@ -69,13 +69,82 @@ class CommentSerializer(serializers.ModelSerializer):
             user_name = user.username
         else:
             user_name = "Unknown User"
-            
+
         validated_data['user_name'] = user_name
-        
+
         # Get the blog post from URL kwargs
         validated_data['blog_post'] = self.context['blog_post']
-        
+
         return super().create(validated_data)
+
+
+class CommentListSerializer(serializers.ModelSerializer):
+    """Serializer for listing comments"""
+    user = UserInfoSerializer(read_only=True)
+    is_reply = serializers.ReadOnlyField()
+
+    class Meta:
+        model = Comment
+        fields = [
+            'id', 'user', 'content', 'created_at', 'is_reply'
+        ]
+        read_only_fields = fields
+
+
+class CommentDetailSerializer(serializers.ModelSerializer):
+    """Serializer for detailed comment view"""
+    user = UserInfoSerializer(read_only=True)
+    is_reply = serializers.ReadOnlyField()
+
+    class Meta:
+        model = Comment
+        fields = [
+            'id', 'blog_post', 'user', 'content',
+            'parent', 'created_at', 'updated_at', 'is_reply'
+        ]
+        read_only_fields = ['id', 'user', 'created_at', 'updated_at', 'is_reply']
+
+
+class CommentCreateUpdateSerializer(serializers.ModelSerializer):
+    """Serializer for creating and updating comments"""
+
+    class Meta:
+        model = Comment
+        fields = [
+            'content', 'parent'
+        ]
+
+    def create(self, validated_data):
+        # Get the user from the request context (following billing service pattern)
+        request = self.context.get('request')
+        user = request.user
+
+        # Set user information directly (like billing service pattern)
+        validated_data['user_user_id'] = str(user.id) if hasattr(user, 'id') else str(user.username)
+
+        # Try to get name from various user attributes (following billing service pattern)
+        user_name = None
+        if hasattr(user, 'first_name') and hasattr(user, 'last_name') and (user.first_name or user.last_name):
+            user_name = f"{user.first_name} {user.last_name}".strip()
+        elif hasattr(user, 'full_name'):
+            user_name = user.full_name
+        elif hasattr(user, 'username'):
+            user_name = user.username
+        else:
+            user_name = "Unknown User"
+
+        validated_data['user_name'] = user_name
+
+        # Get the blog post from URL kwargs
+        validated_data['blog_post'] = self.context['blog_post']
+
+        return super().create(validated_data)
+
+    def validate_content(self, value):
+        """Ensure content is not empty"""
+        if not value.strip():
+            raise serializers.ValidationError("Content cannot be empty")
+        return value.strip()
 
 
 class BlogPostListSerializer(serializers.ModelSerializer):
@@ -110,9 +179,8 @@ class BlogPostDetailSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at', 'updated_at', 'published_at', 'comment_count', 'is_published', 'comments']
     
     def get_comments(self, obj):
-        # Only show approved comments
-        approved_comments = obj.comments.filter(is_approved=True)
-        return CommentSerializer(approved_comments, many=True, context=self.context).data
+        # Show all comments (no approval needed)
+        return CommentSerializer(obj.comments.all(), many=True, context=self.context).data
 
 
 class BlogPostCreateUpdateSerializer(serializers.ModelSerializer):

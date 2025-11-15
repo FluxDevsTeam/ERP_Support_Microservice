@@ -11,10 +11,13 @@ from drf_yasg.utils import swagger_auto_schema
 
 from .models import BlogPost, Comment
 from .serializers import (
-    BlogPostListSerializer, 
-    BlogPostDetailSerializer, 
+    BlogPostListSerializer,
+    BlogPostDetailSerializer,
     BlogPostCreateUpdateSerializer,
-    CommentSerializer
+    CommentSerializer,
+    CommentListSerializer,
+    CommentDetailSerializer,
+    CommentCreateUpdateSerializer
 )
 from .permissions import (
     IsSuperuser,
@@ -163,18 +166,28 @@ class BlogPostViewSet(viewsets.ModelViewSet):
 class CommentViewSet(viewsets.ModelViewSet):
     """
     ViewSet for blog comments.
-    
+
     - Authenticated users: Create comments
     - Comment authors: Edit their own comments
     - Superusers: Full CRUD access
     - Public: Read access to all comments
     """
     queryset = Comment.objects.all()
-    serializer_class = CommentSerializer
     permission_classes = [IsCommenterOrSuperuser]
     filter_backends = [DjangoFilterBackend, OrderingFilter]
     filterset_fields = ['blog_post']
     ordering = ['created_at']
+
+    def get_serializer_class(self):
+        """
+        Return appropriate serializer based on action.
+        """
+        if self.action == 'list':
+            return CommentListSerializer
+        elif self.action in ['create', 'update', 'partial_update']:
+            return CommentCreateUpdateSerializer
+        else:
+            return CommentDetailSerializer
     
     def get_queryset(self):
         """
