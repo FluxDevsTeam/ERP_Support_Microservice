@@ -46,15 +46,17 @@ class BlogPostAPITestCase(APITestCase):
         self.published_post = BlogPost.objects.create(
             title='Published Post',
             content='This is a published blog post content.',
-            author=self.superuser,
+            author_user_id=str(self.superuser.id),
+            author_name=self.superuser.username,
             status='published',
             published_at=timezone.now()
         )
-        
+
         self.draft_post = BlogPost.objects.create(
             title='Draft Post',
             content='This is a draft blog post content.',
-            author=self.superuser,
+            author_user_id=str(self.superuser.id),
+            author_name=self.superuser.username,
             status='draft'
         )
         
@@ -176,7 +178,8 @@ class CommentAPITestCase(APITestCase):
         self.blog_post = BlogPost.objects.create(
             title='Post for Comments',
             content='This post will have comments.',
-            author=self.superuser,
+            author_user_id=str(self.superuser.id),
+            author_name=self.superuser.username,
             status='published',
             published_at=timezone.now()
         )
@@ -217,7 +220,8 @@ class CommentAPITestCase(APITestCase):
         # Create a comment
         comment = Comment.objects.create(
             blog_post=self.blog_post,
-            user=self.regular_user,
+            user_user_id=str(self.regular_user.id),
+            user_name=self.regular_user.username,
             content='This is a comment.',
             is_approved=True
         )
@@ -251,25 +255,28 @@ class PublicBlogAPITestCase(APITestCase):
         self.published_post1 = BlogPost.objects.create(
             title='First Published Post',
             content='First published content.',
-            author=self.superuser,
+            author_user_id=str(self.superuser.id),
+            author_name=self.superuser.username,
             status='published',
             published_at=timezone.now(),
             tags='django,python,web-development'
         )
-        
+
         self.published_post2 = BlogPost.objects.create(
             title='Second Published Post',
             content='Second published content.',
-            author=self.superuser,
+            author_user_id=str(self.superuser.id),
+            author_name=self.superuser.username,
             status='published',
             published_at=timezone.now(),
             tags='javascript,frontend'
         )
-        
+
         self.draft_post = BlogPost.objects.create(
             title='Draft Post',
             content='Draft content.',
-            author=self.superuser,
+            author_user_id=str(self.superuser.id),
+            author_name=self.superuser.username,
             status='draft'
         )
         

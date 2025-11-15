@@ -111,7 +111,7 @@ class CommentCreateUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Comment
         fields = [
-            'content', 'parent'
+            'content', 'parent', 'blog_post'
         ]
 
     def create(self, validated_data):
@@ -134,9 +134,6 @@ class CommentCreateUpdateSerializer(serializers.ModelSerializer):
             user_name = "Unknown User"
 
         validated_data['user_name'] = user_name
-
-        # Get the blog post from URL kwargs
-        validated_data['blog_post'] = self.context['blog_post']
 
         return super().create(validated_data)
 
